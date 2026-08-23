@@ -52,6 +52,17 @@ export async function hamtaHundarForProfil(
   );
 }
 
+/** Hämtar en enskild hund via id, t.ex. för att visa namnet på timer-skärmen. */
+export async function hamtaHund(
+  db: SQLiteDatabase,
+  hundId: Uuid,
+): Promise<Hund | null> {
+  const row = await db.getFirstAsync<Hund>("SELECT * FROM Hund WHERE id = ?", [
+    hundId,
+  ]);
+  return row ?? null;
+}
+
 /**
  * Sida 2 ("Välj hund"): kopplar en hund till jaktdagen. Kan anropas flera
  * gånger för flera hundar samma jaktdag (many-to-many via JaktdagHund).
@@ -64,6 +75,25 @@ export async function laggTillHundIJaktdag(
   await db.runAsync(
     "INSERT OR IGNORE INTO JaktdagHund (jaktdagId, hundId) VALUES (?, ?)",
     [jaktdagId, hundId],
+  );
+}
+
+/**
+ * Hämtar de hundar som är kopplade till en specifik jaktdag (via
+ * JaktdagHund). Används på timer-skärmen för att låta användaren byta
+ * vilken hund som är aktiv mellan drev, när fler än en hund valdes i
+ * "Välj hund"-steget.
+ */
+export async function hamtaHundarForJaktdag(
+  db: SQLiteDatabase,
+  jaktdagId: Uuid,
+): Promise<Hund[]> {
+  return db.getAllAsync<Hund>(
+    `SELECT h.* FROM Hund h
+     JOIN JaktdagHund jh ON jh.hundId = h.id
+     WHERE jh.jaktdagId = ?
+     ORDER BY h.namn`,
+    [jaktdagId],
   );
 }
 
