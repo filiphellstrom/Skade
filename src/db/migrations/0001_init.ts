@@ -1,0 +1,84 @@
+/**
+ * Migration 0001 – initialt schema för Skade v1.
+ *
+ * Detta är källan till sanningen för migrationen (importeras av migrate.ts).
+ * En ren, läsbar kopia av samma SQL finns även i 0001_init.sql.reference i
+ * den här mappen, för dokumentation och för att kunna köras manuellt mot en
+ * SQLite-fil med t.ex. `sqlite3`-CLI:t vid felsökning. Håll de två filerna i
+ * synk om SQL:en ändras.
+ *
+ * Beslutad: 2026-08-23, låst i chatten "Skade – Datamodell".
+ *
+ * Grundläggande designval:
+ * - Text-UUID som primärnyckel (inte autoincrement), för att stödja att ID:n
+ *   skapas offline på klienten och senare synkas till Supabase utan kollisioner.
+ * - Alla tidsstämplar som INTEGER (unix-tid i sekunder).
+ * - createdAt/updatedAt på alla tabeller för framtida synk-logik.
+ *
+ * OBS - implementationsdetalj: SQLite har FOREIGN KEY-stöd avstängt som
+ * standard. Appen måste köra `PRAGMA foreign_keys = ON;` vid varje uppstart
+ * (se src/db/client.ts) för att referenserna nedan faktiskt ska upprätthållas.
+ */
+export const sql = `
+-- Inget inloggat läge i v1 - profilen är bara jägarens egen identitet lokalt.
+CREATE TABLE Profil (
+  id TEXT PRIMARY KEY,
+  namn TEXT NOT NULL,
+  mailadress TEXT,                 -- frivillig
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE Hund (
+  id TEXT PRIMARY KEY,
+  profilId TEXT NOT NULL REFERENCES Profil(id),
+  namn TEXT NOT NULL,
+  ras TEXT,                        -- frivillig
+  fodelsedatum INTEGER,            -- frivillig, unix-tid (datum utan tid)
+  kommentar TEXT,                  -- frivilligt fritextfält
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE Jaktdag (
+  id TEXT PRIMARY KEY,
+  profilId TEXT NOT NULL REFERENCES Profil(id),
+  datum INTEGER NOT NULL,
+  jaktmark TEXT NOT NULL,          -- fritext
+  aktivHundId TEXT REFERENCES Hund(id),  -- vald/aktuell hund på huvudskärmen just nu
+  status TEXT NOT NULL DEFAULT 'pagar',  -- 'pagar' | 'avslutad'
+  avslutadAt INTEGER,
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+
+-- En jaktdag kan ha flera hundar -> many-to-many
+CREATE TABLE JaktdagHund (
+  jaktdagId TEXT NOT NULL REFERENCES Jaktdag(id),
+  hundId TEXT NOT NULL REFERENCES Hund(id),
+  PRIMARY KEY (jaktdagId, hundId)
+);
+
+CREATE TABLE Drev (
+  id TEXT PRIMARY KEY,
+  jaktdagId TEXT NOT NULL REFERENCES Jaktdag(id),
+  hundId TEXT NOT NULL REFERENCES Hund(id),
+  startTimestamp INTEGER NOT NULL,
+  endTimestamp INTEGER,            -- NULL = drevet pågår
+  duration INTEGER,                -- sekunder, satt vid stopp (endTimestamp - startTimestamp)
+  species TEXT,                    -- Sprint 2: viltart (fri text i v1)
+  outcome TEXT,                    -- Sprint 2: utfall (fri text i v1)
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+
+-- Garanterar på databasnivå att endast ETT drev kan vara pågående per jaktdag
+-- samtidigt, oavsett vilken hund det gäller (bara en hund kan drevas åt gången).
+CREATE UNIQUE INDEX idx_one_active_drev_per_jaktdag
+  ON Drev(jaktdagId)
+  WHERE endTimestamp IS NULL;
+
+CREATE INDEX idx_drev_jaktdag ON Drev(jaktdagId);
+CREATE INDEX idx_drev_hund ON Drev(hundId);
+CREATE INDEX idx_jaktdaghund_hund ON JaktdagHund(hundId);
+`;

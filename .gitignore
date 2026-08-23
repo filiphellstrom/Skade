@@ -1,0 +1,37 @@
+# Node
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build output
+ios/
+android/
+
+# macOS
+.DS_Store
+*.pem
+
+# Local env files
+.env
+.env.local
+.env*.local
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# Testing
+coverage/
+
+# Local SQLite-databaser (skapas på enheten, ska inte committas)
+*.db
+*.sqlite

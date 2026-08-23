@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Skade",
+    "slug": "skade",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "skade",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.skade.app"
+    },
+    "android": {
+      "package": "com.skade.app"
+    },
+    "plugins": ["expo-router", "expo-sqlite"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
