@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { avslutaJaktdag, hamtaJaktdag, settAktivHund } from "@/db/queries/jaktdag";
 import { hamtaHundarForJaktdag } from "@/db/queries/hund";
@@ -40,28 +40,34 @@ export default function Timer() {
   const [sparar, setSparar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
 
-  useEffect(() => {
-    let avbruten = false;
+  // Hämtar om vid varje fokus, inte bara vid montering - se motivering i
+  // app/index.tsx. Här betyder det bland annat att hundlistan för
+  // byt-hund-läget är färsk om man t.ex. lagt till en hund på jaktdagen
+  // från ett annat håll medan man var borta från timern.
+  useFocusEffect(
+    useCallback(() => {
+      let avbruten = false;
 
-    (async () => {
-      const db = await getDatabase();
-      const [j, hundar, drev] = await Promise.all([
-        hamtaJaktdag(db, jaktdagId),
-        hamtaHundarForJaktdag(db, jaktdagId),
-        hamtaPagaendeDrev(db, jaktdagId),
-      ]);
-      if (!avbruten) {
-        setJaktdag(j);
-        setHundarPaJaktdagen(hundar);
-        setPagaendeDrev(drev);
-        setLaddat(true);
-      }
-    })();
+      (async () => {
+        const db = await getDatabase();
+        const [j, hundar, drev] = await Promise.all([
+          hamtaJaktdag(db, jaktdagId),
+          hamtaHundarForJaktdag(db, jaktdagId),
+          hamtaPagaendeDrev(db, jaktdagId),
+        ]);
+        if (!avbruten) {
+          setJaktdag(j);
+          setHundarPaJaktdagen(hundar);
+          setPagaendeDrev(drev);
+          setLaddat(true);
+        }
+      })();
 
-    return () => {
-      avbruten = true;
-    };
-  }, [jaktdagId]);
+      return () => {
+        avbruten = true;
+      };
+    }, [jaktdagId]),
+  );
 
   const elapsed = useElapsedTime(pagaendeDrev?.startTimestamp ?? null);
 
@@ -160,6 +166,7 @@ export default function Timer() {
       <ScreenHeader
         jaktmark={jaktdag.jaktmark}
         datum={new Date(jaktdag.datum * 1000)}
+        visaTillbaka
       />
 
       <View style={styles.mitten}>

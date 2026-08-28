@@ -45,6 +45,30 @@ export async function hamtaJaktdag(
 }
 
 /**
+ * Sprint 2 - huvudskärmen: hämtar profilens pågående jaktdag (status
+ * 'pagar'), om någon finns. Styr både vad huvudskärmen visar ("Ny
+ * jaktdag" kontra "Fortsätt jaktdag") och vart "Fortsätt"-knappen
+ * navigerar - se aktivHundId på svaret: null betyder att hundval aldrig
+ * slutfördes (t.ex. om man tryckte tillbaka från "Välj hund"), så då ska
+ * man tillbaka dit istället för till timern.
+ *
+ * Appen tillåter bara en pågående jaktdag i taget (beslutat 2026-08-23) -
+ * det är inte en databasbegränsning, bara en regel huvudskärmens UI följer
+ * genom att dölja "Ny jaktdag" så länge en redan pågår. ORDER BY/LIMIT är
+ * ett skyddsnät om det ändå skulle finnas fler någon gång.
+ */
+export async function hamtaPagaendeJaktdag(
+  db: SQLiteDatabase,
+  profilId: Uuid,
+): Promise<Jaktdag | null> {
+  const row = await db.getFirstAsync<Jaktdag>(
+    "SELECT * FROM Jaktdag WHERE profilId = ? AND status = 'pagar' ORDER BY createdAt DESC LIMIT 1",
+    [profilId],
+  );
+  return row ?? null;
+}
+
+/**
  * Sida 2 ("Välj hund"): sätter aktivHundId på en redan skapad jaktdag.
  * JaktdagHund-raderna för de valda hundarna skapas separat, se hund.ts.
  */

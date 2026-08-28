@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { hamtaJaktdag, settAktivHund } from "@/db/queries/jaktdag";
 import { hamtaHundarForProfil, laggTillHundIJaktdag } from "@/db/queries/hund";
@@ -40,25 +40,30 @@ export default function ValjHund() {
   const [sparar, setSparar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
 
-  useEffect(() => {
-    let avbruten = false;
+  // Hämtar om vid varje fokus, inte bara vid montering - se motivering i
+  // app/index.tsx (samma buggklass: en hund kan ha lagts till från ett
+  // annat håll medan man var borta från den här skärmen).
+  useFocusEffect(
+    useCallback(() => {
+      let avbruten = false;
 
-    (async () => {
-      const db = await getDatabase();
-      const [j, h] = await Promise.all([
-        hamtaJaktdag(db, jaktdagId),
-        hamtaHundarForProfil(db, profil.id),
-      ]);
-      if (!avbruten) {
-        setJaktdag(j);
-        setHundar(h);
-      }
-    })();
+      (async () => {
+        const db = await getDatabase();
+        const [j, h] = await Promise.all([
+          hamtaJaktdag(db, jaktdagId),
+          hamtaHundarForProfil(db, profil.id),
+        ]);
+        if (!avbruten) {
+          setJaktdag(j);
+          setHundar(h);
+        }
+      })();
 
-    return () => {
-      avbruten = true;
-    };
-  }, [jaktdagId, profil.id]);
+      return () => {
+        avbruten = true;
+      };
+    }, [jaktdagId, profil.id]),
+  );
 
   const vaxlaVal = useCallback(
     (hundId: Uuid) => {
@@ -128,6 +133,7 @@ export default function ValjHund() {
       <ScreenHeader
         jaktmark={jaktdag.jaktmark}
         datum={new Date(jaktdag.datum * 1000)}
+        visaTillbaka
       />
 
       <Text style={[styles.rubrik, { color: colors.text }]}>Välj hund</Text>
