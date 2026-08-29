@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useThemeColors } from "@/theme/colors";
 
 interface InfoRowProps {
@@ -6,25 +6,26 @@ interface InfoRowProps {
   undertitel?: string;
   /** Kort text längst till höger, t.ex. total drevtid eller en "Pågår"-status. */
   hoger?: string;
+  /**
+   * Sprint 3: om satt blir hela raden tryckbar (t.ex. huvudskärmens
+   * hundlista → app/hund/[hundId].tsx för att redigera hunden) och en
+   * liten pil visas till höger som tryckbarhets-hint. Utan onPress är
+   * raden kvar som ren visning, precis som tidigare.
+   */
+  onPress?: () => void;
 }
 
 /**
- * Icke-tryckbar informationsrad - samma kortstil som SelectableCard men
- * utan val-markör, för ren visning (huvudskärmens hundlista och
- * pågående-jaktdag-sammanfattningen). Om raden någon gång ska bli
- * tryckbar (t.ex. navigera till en hunds historik i en senare sprint) är
- * SelectableCard rätt byggsten istället, inte den här.
+ * Informationsrad - samma kortstil som SelectableCard men utan
+ * val-markör. Används för huvudskärmens hundlista och
+ * pågående-jaktdag-sammanfattningen. Tryckbar när `onPress` skickas in,
+ * annars ren visning.
  */
-export function InfoRow({ titel, undertitel, hoger }: InfoRowProps) {
+export function InfoRow({ titel, undertitel, hoger, onPress }: InfoRowProps) {
   const colors = useThemeColors();
 
-  return (
-    <View
-      style={[
-        styles.rad,
-        { backgroundColor: colors.surface, borderColor: colors.border },
-      ]}
-    >
+  const innehall = (
+    <>
       <View style={styles.textkolumn}>
         <Text style={[styles.titel, { color: colors.text }]} numberOfLines={1}>
           {titel}
@@ -38,6 +39,38 @@ export function InfoRow({ titel, undertitel, hoger }: InfoRowProps) {
       {hoger ? (
         <Text style={[styles.hoger, { color: colors.primary }]}>{hoger}</Text>
       ) : null}
+      {onPress ? (
+        <Text style={[styles.pil, { color: colors.textMuted }]}>›</Text>
+      ) : null}
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.rad,
+          {
+            backgroundColor: pressed ? colors.surfaceSelected : colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        {innehall}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.rad,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
+      {innehall}
     </View>
   );
 }
@@ -67,5 +100,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     marginLeft: 12,
+  },
+  pil: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginLeft: 8,
   },
 });

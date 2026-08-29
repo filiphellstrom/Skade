@@ -1,11 +1,18 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { avslutaJaktdag, hamtaJaktdag, settAktivHund } from "@/db/queries/jaktdag";
 import { hamtaHundarForJaktdag } from "@/db/queries/hund";
 import {
   hamtaPagaendeDrev,
+  hamtaSenasteDrev,
   startaDrev,
   stoppaDrev,
 } from "@/db/queries/drev";
@@ -24,6 +31,14 @@ import { useThemeColors } from "@/theme/colors";
  * databasen (hamtaPagaendeDrev), inte från något sparat JS-state. Den
  * synliga klockan (useElapsedTime) räknar bara om `nu - startTimestamp`
  * varje sekund; startTimestamp är källan till sanning.
+ *
+ * Sprint 3: när ett drev stoppas navigeras man direkt vidare till
+ * app/jaktdag/[jaktdagId]/drev/[drevId].tsx för att (valfritt) välja
+ * viltart/utfall - se stopp() nedan. Den vyn har egna Spara/Hoppa över-
+ * knappar (beslutat 2026-08-29, ersätter ett tidigare försök med
+ * spara-direkt-chips direkt här på timern). `senasteDrev` hämtas ändå kvar
+ * vid mount/fokus (hamtaSenasteDrev()) bara för att visa "Senaste drevet:
+ * mm:ss" på timern - ingen inmatning kvar här.
  */
 export default function Timer() {
   const colors = useThemeColors();
@@ -32,9 +47,7 @@ export default function Timer() {
   const [jaktdag, setJaktdag] = useState<Jaktdag | null>(null);
   const [hundarPaJaktdagen, setHundarPaJaktdagen] = useState<Hund[]>([]);
   const [pagaendeDrev, setPagaendeDrev] = useState<Drev | null>(null);
-  const [senasteDrevSekunder, setSenasteDrevSekunder] = useState<
-    number | null
-  >(null);
+  const [senasteDrev, setSenasteDrev] = useState<Drev | null>(null);
   const [visaBytHund, setVisaBytHund] = useState(false);
   const [laddat, setLaddat] = useState(false);
   const [sparar, setSparar] = useState(false);
@@ -50,15 +63,19 @@ export default function Timer() {
 
       (async () => {
         const db = await getDatabase();
-        const [j, hundar, drev] = await Promise.all([
+        const [j, hundar, drev, senaste] = await Promise.all([
           hamtaJaktdag(db, jaktdagId),
           hamtaHundarForJaktdag(db, jaktdagId),
           hamtaPagaendeDrev(db, jaktdagId),
+          hamtaSenasteDrev(db, jaktdagId),
         ]);
         if (!avbruten) {
           setJaktdag(j);
           setHundarPaJaktdagen(hundar);
           setPagaendeDrev(drev);
+          setSenasteDrev(
+            !drev && senaste && senaste.endTimestamp !== null ? senaste : null,
+          );
           setLaddat(true);
         }
       })();
@@ -86,7 +103,7 @@ export default function Timer() {
         hundId: aktivHund.id,
       });
       setPagaendeDrev(drev);
-      setSenasteDrevSekunder(null);
+      setSenasteDrev(null);
     } catch (e) {
       setFel(
         e instanceof Error
@@ -107,8 +124,9 @@ export default function Timer() {
     try {
       const db = await getDatabase();
       const avslutatDrev = await stoppaDrev(db, pagaendeDrev.id);
-      setSenasteDrevSekunder(avslutatDrev.duration ?? 0);
+      setSenasteDrev(avslutatDrev);
       setPagaendeDrev(null);
+      router.push(`/jaktdag/${jaktdagId}/drev/${avslutatDrev.id}`);
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte stoppa drevet.");
     } finally {
@@ -169,74 +187,79 @@ export default function Timer() {
         visaTillbaka
       />
 
-      <View style={styles.mitten}>
-        <Text style={[styles.hundnamn, { color: colors.text }]}>
-          {aktivHund?.namn ?? "Ingen hund vald"}
-        </Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollInnehall}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.mitten}>
+          <Text style={[styles.hundnamn, { color: colors.text }]}>
+            {aktivHund?.namn ?? "Ingen hund vald"}
+          </Text>
 
-        {hundarPaJaktdagen.length > 1 && !pagaendeDrev && (
+          {hundarPaJaktdagen.length > 1 && !pagaendeDrev && (
+            <BigButton
+              label={visaBytHund ? "Avbryt hundbyte" : "Byt hund"}
+              variant="secondary"
+              onPress={() => setVisaBytHund((v) => !v)}
+            />
+          )}
+
+          {visaBytHund && (
+            <View style={styles.lista}>
+              {hundarPaJaktdagen.map((hund) => (
+                <SelectableCard
+                  key={hund.id}
+                  titel={hund.namn}
+                  vald={hund.id === jaktdag.aktivHundId}
+                  onPress={() => bytAktivHund(hund.id)}
+                  typ="radio"
+                />
+              ))}
+            </View>
+          )}
+
+          <TimerDisplay sekunder={elapsed} pagar={pagaendeDrev !== null} />
+
+          {senasteDrev && !pagaendeDrev && (
+            <Text style={[styles.senasteDrevTid, { color: colors.textMuted }]}>
+              Senaste drevet: {formateraTid(senasteDrev.duration ?? 0)}
+            </Text>
+          )}
+
+          {fel && <InlineBanner text={fel} typ="error" />}
+        </View>
+
+        <View style={styles.knappblock}>
+          {pagaendeDrev ? (
+            <BigButton
+              label="Stoppa drev"
+              variant="danger"
+              onPress={stopp}
+              laddar={sparar}
+            />
+          ) : (
+            <BigButton
+              label="Starta drev"
+              onPress={start}
+              disabled={!aktivHund}
+              laddar={sparar}
+            />
+          )}
+
           <BigButton
-            label={visaBytHund ? "Avbryt hundbyte" : "Byt hund"}
+            label="Avsluta jaktdag"
             variant="secondary"
-            onPress={() => setVisaBytHund((v) => !v)}
+            onPress={avsluta}
+            disabled={pagaendeDrev !== null}
+            laddar={sparar && pagaendeDrev === null}
           />
-        )}
-
-        {visaBytHund && (
-          <View style={styles.lista}>
-            {hundarPaJaktdagen.map((hund) => (
-              <SelectableCard
-                key={hund.id}
-                titel={hund.namn}
-                vald={hund.id === jaktdag.aktivHundId}
-                onPress={() => bytAktivHund(hund.id)}
-                typ="radio"
-              />
-            ))}
-          </View>
-        )}
-
-        <TimerDisplay sekunder={elapsed} pagar={pagaendeDrev !== null} />
-
-        {senasteDrevSekunder !== null && !pagaendeDrev && (
-          <Text style={[styles.senasteDrev, { color: colors.textMuted }]}>
-            Senaste drevet: {formateraTid(senasteDrevSekunder)}
-          </Text>
-        )}
-
-        {fel && <InlineBanner text={fel} typ="error" />}
-      </View>
-
-      <View style={styles.knappblock}>
-        {pagaendeDrev ? (
-          <BigButton
-            label="Stoppa drev"
-            variant="danger"
-            onPress={stopp}
-            laddar={sparar}
-          />
-        ) : (
-          <BigButton
-            label="Starta drev"
-            onPress={start}
-            disabled={!aktivHund}
-            laddar={sparar}
-          />
-        )}
-
-        <BigButton
-          label="Avsluta jaktdag"
-          variant="secondary"
-          onPress={avsluta}
-          disabled={pagaendeDrev !== null}
-          laddar={sparar && pagaendeDrev === null}
-        />
-        {pagaendeDrev !== null && (
-          <Text style={[styles.avslutaHint, { color: colors.textMuted }]}>
-            Stoppa det pågående drevet för att kunna avsluta jaktdagen.
-          </Text>
-        )}
-      </View>
+          {pagaendeDrev !== null && (
+            <Text style={[styles.avslutaHint, { color: colors.textMuted }]}>
+              Stoppa det pågående drevet för att kunna avsluta jaktdagen.
+            </Text>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -245,23 +268,29 @@ const styles = StyleSheet.create({
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
   container: {
     flex: 1,
-    paddingHorizontal: 24,
     paddingTop: 24,
+  },
+  scrollInnehall: {
+    flexGrow: 1,
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
     paddingBottom: 32,
+    gap: 24,
   },
   mitten: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
     gap: 14,
+    width: "100%",
   },
   hundnamn: {
     fontSize: 22,
     fontWeight: "800",
   },
-  senasteDrev: {
+  senasteDrevTid: {
     fontSize: 15,
     fontWeight: "600",
+    textAlign: "center",
+    marginTop: 8,
   },
   lista: {
     width: "100%",

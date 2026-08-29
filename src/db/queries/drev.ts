@@ -69,6 +69,32 @@ export async function stoppaDrev(
   return { ...drev, endTimestamp: now, duration, updatedAt: now };
 }
 
+/**
+ * Sprint 3: sätter viltart och/eller utfall på ett (oftast nyss stoppat)
+ * drev - valfritt fält för fält, se app/jaktdag/[jaktdagId]/drev/[drevId].tsx.
+ * Tom sträng sparas som NULL, inte som "".
+ */
+export async function uppdateraDrevViltartUtfall(
+  db: SQLiteDatabase,
+  drevId: Uuid,
+  params: { species?: string; outcome?: string },
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+
+  if (params.species !== undefined) {
+    await db.runAsync(
+      "UPDATE Drev SET species = ?, updatedAt = ? WHERE id = ?",
+      [params.species.trim() || null, now, drevId],
+    );
+  }
+  if (params.outcome !== undefined) {
+    await db.runAsync(
+      "UPDATE Drev SET outcome = ?, updatedAt = ? WHERE id = ?",
+      [params.outcome.trim() || null, now, drevId],
+    );
+  }
+}
+
 /** Hämtar det pågående drevet för en jaktdag, om något finns. */
 export async function hamtaPagaendeDrev(
   db: SQLiteDatabase,
@@ -78,6 +104,38 @@ export async function hamtaPagaendeDrev(
     "SELECT * FROM Drev WHERE jaktdagId = ? AND endTimestamp IS NULL",
     [jaktdagId],
   );
+  return row ?? null;
+}
+
+/**
+ * Hämtar ett pågående drev för en specifik HUND (oavsett jaktdag) - inte
+ * att förväxla med hamtaPagaendeDrev() ovan som söker per jaktdag.
+ * Används som skydd i arkiveraHund()/raderaHund() (src/db/queries/hund.ts)
+ * så att en hund inte kan arkiveras eller raderas medan dess timer går.
+ */
+export async function hamtaPagaendeDrevForHund(
+  db: SQLiteDatabase,
+  hundId: Uuid,
+): Promise<Drev | null> {
+  const row = await db.getFirstAsync<Drev>(
+    "SELECT * FROM Drev WHERE hundId = ? AND endTimestamp IS NULL",
+    [hundId],
+  );
+  return row ?? null;
+}
+
+/**
+ * Hämtar ett specifikt drev via id - används av
+ * app/jaktdag/[jaktdagId]/drev/[drevId].tsx (viltart/utfall-vyn) för att
+ * ladda drevet man precis stoppade.
+ */
+export async function hamtaDrev(
+  db: SQLiteDatabase,
+  drevId: Uuid,
+): Promise<Drev | null> {
+  const row = await db.getFirstAsync<Drev>("SELECT * FROM Drev WHERE id = ?", [
+    drevId,
+  ]);
   return row ?? null;
 }
 

@@ -40,6 +40,10 @@ import { useThemeColors } from "@/theme/colors";
  * Hunden vars drev pågår just nu visar "Drev pågår" istället för sin
  * totala drevtid, se pagaendeDrev.hundId nedan.
  *
+ * Sprint 3: varje hundrad är nu tryckbar och öppnar app/hund/[hundId].tsx
+ * för redigering/arkivering/radering (InfoRow tar en valfri onPress-prop).
+ * En liten länk under hundlistan leder vidare till app/hund/arkiverade.tsx.
+ *
  * Datan hämtas om varje gång skärmen får fokus (useFocusEffect), inte bara
  * vid första monteringen. Orsak (bugg hittad av Filip 2026-08-23): en
  * router.back() hit - t.ex. efter att ha lagt till en hund via
@@ -194,6 +198,7 @@ export default function HuvudSkarm() {
                     ? formateraTid(h.totalDrevtid)
                     : undefined
               }
+              onPress={() => router.push(`/hund/${h.hundId}`)}
             />
           ))}
         </View>
@@ -203,6 +208,14 @@ export default function HuvudSkarm() {
           variant="secondary"
           onPress={() => router.push("/hund/ny")}
         />
+
+        <Text
+          accessibilityRole="link"
+          onPress={() => router.push("/hund/arkiverade")}
+          style={[styles.arkivLank, { color: colors.textMuted }]}
+        >
+          Visa arkiverade hundar
+        </Text>
       </View>
     </ScrollView>
   );
@@ -239,5 +252,12 @@ const styles = StyleSheet.create({
   avslutaHint: {
     fontSize: 13,
     textAlign: "center",
+  },
+  arkivLank: {
+    fontSize: 14,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+    textAlign: "center",
+    paddingVertical: 10,
   },
 });

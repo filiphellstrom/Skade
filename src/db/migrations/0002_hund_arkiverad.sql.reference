@@ -1,0 +1,8 @@
+-- Migration 0002 – arkivera hund
+-- Beslutad: 2026-08-23, i chatten "Skade – Sprint 1".
+--
+-- Soft-delete-flagga för Hund: en arkiverad hund (arkiverad = 1) plockas
+-- bort ur de vanliga listorna utan att historiken (Drev/JaktdagHund) rörs.
+-- Se raderaHund() i src/db/queries/hund.ts för den permanenta varianten.
+
+ALTER TABLE Hund ADD COLUMN arkiverad INTEGER NOT NULL DEFAULT 0;

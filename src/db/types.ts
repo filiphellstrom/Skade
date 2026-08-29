@@ -1,5 +1,5 @@
 /**
- * Handskrivna typer som ska matcha src/db/migrations/0001_init.ts exakt.
+ * Handskrivna typer som ska matcha src/db/migrations/*.ts exakt.
  *
  * VIKTIGT (medvetet val, se ändringslogg 2026-08-23): vi använder rå SQL
  * istället för en ORM. Det betyder att dessa typer INTE genereras automatiskt
@@ -7,9 +7,12 @@
  * uppdateras för hand också - annars riskerar TypeScript-typerna att glida
  * isär från den faktiska databasen utan att kompilatorn varnar.
  *
- * SQLite lagrar booleans som INTEGER (0/1) och saknar ett riktigt boolean-
- * typ - inget sådant fält finns än i schemat, men värt att komma ihåg för
- * framtida tillägg.
+ * SQLite lagrar booleans som INTEGER (0/1) och saknar en riktig boolean-
+ * typ. `Hund.arkiverad` (migration 0002) är det första sådana fältet -
+ * typat som `0 | 1` nedan istället för `boolean` för att ärligt spegla vad
+ * expo-sqlite faktiskt returnerar från en rå SELECT (ingen automatisk
+ * konvertering sker). Truthiness (`if (hund.arkiverad)`) fungerar som
+ * väntat även så.
  */
 
 export type Uuid = string;
@@ -34,6 +37,8 @@ export interface Hund {
   ras: string | null;
   fodelsedatum: UnixTimestamp | null;
   kommentar: string | null;
+  /** Migration 0002. 0 = aktiv, 1 = arkiverad (dold från vanliga listor, historik orörd). */
+  arkiverad: 0 | 1;
   createdAt: UnixTimestamp;
   updatedAt: UnixTimestamp;
 }
