@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { randomUUID } from "../../utils/uuid";
-import type { Drev, Uuid } from "../types";
+import type { Drev, DrevMedHundnamn, UnixTimestamp, Uuid } from "../types";
 
 /**
  * Sida 3 ("Starta timer"): skapar ett nytt Drev med startTimestamp = nu.
@@ -70,16 +70,62 @@ export async function stoppaDrev(
 }
 
 /**
- * Sprint 3: sätter viltart och/eller utfall på ett (oftast nyss stoppat)
- * drev - valfritt fält för fält, se app/jaktdag/[jaktdagId]/drev/[drevId].tsx.
- * Tom sträng sparas som NULL, inte som "".
+ * Sprint 3 (2026-08-29, utökad efter "Det behövs"): sätter valfri
+ * kombination av hund, start-/sluttid och viltart/utfall på ett (oftast
+ * nyss stoppat, ibland ett äldre från historiken) drev - se
+ * app/jaktdag/[jaktdagId]/drev/[drevId].tsx. Ersätter den tidigare
+ * uppdateraDrevViltartUtfall() som bara kunde ändra viltart/utfall.
+ *
+ * hundId uppdateras för sig (inget att räkna om). start-/sluttid hanteras
+ * tillsammans eftersom duration måste räknas om utifrån båda - saknas det
+ * ena hämtas drevets nuvarande värde som utgångspunkt. Kastar fel om den
+ * nya sluttiden inte längre är efter den nya starttiden (samma
+ * felmeddelande oavsett vilket av de två fälten som orsakade det - UI:t
+ * validerar redan innan Spara går att trycka, det här är ett sista skydd).
+ * Viltart/utfall: tom sträng sparas som NULL, inte som "" - oförändrat.
  */
-export async function uppdateraDrevViltartUtfall(
+export async function uppdateraDrev(
   db: SQLiteDatabase,
   drevId: Uuid,
-  params: { species?: string; outcome?: string },
+  params: {
+    hundId?: Uuid;
+    startTimestamp?: UnixTimestamp;
+    endTimestamp?: UnixTimestamp;
+    species?: string;
+    outcome?: string;
+  },
 ): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
+
+  if (params.hundId !== undefined) {
+    await db.runAsync(
+      "UPDATE Drev SET hundId = ?, updatedAt = ? WHERE id = ?",
+      [params.hundId, now, drevId],
+    );
+  }
+
+  if (params.startTimestamp !== undefined || params.endTimestamp !== undefined) {
+    const drev = await db.getFirstAsync<Drev>("SELECT * FROM Drev WHERE id = ?", [
+      drevId,
+    ]);
+    if (!drev) {
+      throw new Error(`Drev med id ${drevId} hittades inte.`);
+    }
+
+    const nyStart = params.startTimestamp ?? drev.startTimestamp;
+    const nySlut = params.endTimestamp ?? drev.endTimestamp;
+
+    if (nySlut !== null && nySlut <= nyStart) {
+      throw new Error("Sluttiden måste vara efter starttiden.");
+    }
+
+    const duration = nySlut !== null ? nySlut - nyStart : null;
+
+    await db.runAsync(
+      "UPDATE Drev SET startTimestamp = ?, endTimestamp = ?, duration = ?, updatedAt = ? WHERE id = ?",
+      [nyStart, nySlut, duration, now, drevId],
+    );
+  }
 
   if (params.species !== undefined) {
     await db.runAsync(
@@ -137,6 +183,49 @@ export async function hamtaDrev(
     drevId,
   ]);
   return row ?? null;
+}
+
+/**
+ * Sprint 3: samma som hamtaDrev() men med hundens namn inbakat (JOIN) -
+ * används av app/jaktdag/[jaktdagId]/drev/[drevId].tsx när skärmen öppnas
+ * för att redigera/radera ett äldre drev från historiken, inte bara ett
+ * precis stoppat (då räcker det redan man vet vilken hund det gäller).
+ */
+export async function hamtaDrevMedHundnamn(
+  db: SQLiteDatabase,
+  drevId: Uuid,
+): Promise<DrevMedHundnamn | null> {
+  const row = await db.getFirstAsync<DrevMedHundnamn>(
+    `SELECT d.*, h.namn AS hundNamn
+     FROM Drev d
+     JOIN Hund h ON h.id = d.hundId
+     WHERE d.id = ?`,
+    [drevId],
+  );
+  return row ?? null;
+}
+
+/**
+ * Sprint 3: raderar ett drev permanent - "Radera drev" i
+ * app/jaktdag/[jaktdagId]/drev/[drevId].tsx, nåbart både direkt efter ett
+ * stopp och från historiken, om man registrerat fel drev. Blockerad om
+ * drevet fortfarande pågår (samma försiktighetsprincip som
+ * arkiveraHund()/raderaHund() - normalt inte möjligt att nå hit för ett
+ * pågående drev, men skyddar mot det ändå).
+ */
+export async function raderaDrev(db: SQLiteDatabase, drevId: Uuid): Promise<void> {
+  const drev = await db.getFirstAsync<Drev>("SELECT * FROM Drev WHERE id = ?", [
+    drevId,
+  ]);
+
+  if (!drev) {
+    throw new Error(`Drev med id ${drevId} hittades inte.`);
+  }
+  if (drev.endTimestamp === null) {
+    throw new Error("Kan inte radera ett pågående drev.");
+  }
+
+  await db.runAsync("DELETE FROM Drev WHERE id = ?", [drevId]);
 }
 
 /** Hämtar senaste (nyast startade) drevet för en jaktdag, oavsett status. */

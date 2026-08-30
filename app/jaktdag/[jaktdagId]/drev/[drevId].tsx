@@ -2,11 +2,14 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
-import { hamtaDrev, uppdateraDrevViltartUtfall } from "@/db/queries/drev";
-import type { Drev } from "@/db/types";
+import { hamtaDrevMedHundnamn, raderaDrev, uppdateraDrev } from "@/db/queries/drev";
+import { hamtaHundarForJaktdag } from "@/db/queries/hund";
+import type { DrevMedHundnamn, Hund } from "@/db/types";
 import { BigButton } from "@/components/BigButton";
 import { ChipSelect } from "@/components/ChipSelect";
 import { InlineBanner } from "@/components/InlineBanner";
+import { SelectableCard } from "@/components/SelectableCard";
+import { TidField } from "@/components/TidField";
 import { formateraTid } from "@/hooks/useElapsedTime";
 import { useThemeColors } from "@/theme/colors";
 
@@ -14,30 +17,49 @@ const VILTARTER = ["Rådjur", "Vildsvin", "Räv", "Hare", "Älg"];
 const UTFALL = ["Fälld", "Missad", "Ingen kontakt"];
 
 /**
- * Egen vy för viltart/utfall, öppnas direkt efter att ett drev stoppats
- * (se stopp() i .../timer.tsx som pushar hit med det nyss avslutade
- * drevets id). Beslutat 2026-08-29: ett tidigare försök lät chipsen spara
- * direkt inline på timer-skärmen utan någon Spara-knapp - Filip ville
- * istället ha ett eget steg med explicit "Spara" och "Hoppa över", så
- * valen här är lokala tills man trycker Spara.
+ * Vy för ett enskilt drev - hund, start-/sluttid, viltart/utfall, samt
+ * radering. Nås på två sätt:
  *
- * "Hoppa över" lämnar drevets species/outcome orörda (oftast NULL om det
- * är första gången) och går tillbaka till timern utan att spara något.
- * Båda knapparna navigerar tillbaka med router.back() - skärmen är alltid
- * pushad ovanpå en redan monterad timer-instans, som hämtar om sin data
- * (bl.a. "Senaste drevet: mm:ss") när den återfår fokus.
+ * 1. Direkt efter att ett drev stoppats (stopp() i .../timer.tsx pushar
+ *    hit med `?nystoppat=1`). Rubrik/text är då anpassad för det läget
+ *    ("Drevet stoppat" + en fråga), och den sekundära knappen heter
+ *    "Hoppa över".
+ * 2. Från historiken (app/historik/[jaktdagId].tsx, ingen extra
+ *    query-param) för att redigera eller radera ett äldre drev i
+ *    efterhand (beslutat 2026-08-29, Filip: "all historik ska vara
+ *    editerbar"). Då heter rubriken "Redigera drev", och den sekundära
+ *    knappen heter "Avbryt" istället.
+ *
+ * Sprint 3 (2026-08-29, andra omgången - Filip svarade "Det behövs" på
+ * frågan om hund-/tidsredigering): utökad med en Hund-sektion (bara
+ * redigerbar, som en radiolista, om jaktdagen har fler än en hund kopplad
+ * - annars bara hundens namn som text) och en Tid-sektion (Start-/Slut-
+ * klockslag via TidField, med en live omräknad duration). Spara-knappen
+ * är avstängd om vald sluttid inte längre är efter starttiden.
+ *
+ * Båda entry-lägena delar samma Spara-logik (uppdateraDrev, lokalt state
+ * tills man trycker Spara) och samma Radera-flöde (raderaDrev, samma
+ * bekräftelsemönster som "Radera hund").
  */
-export default function DrevViltartUtfall() {
+export default function RedigeraDrev() {
   const colors = useThemeColors();
-  const { jaktdagId, drevId } = useLocalSearchParams<{
+  const { jaktdagId, drevId, nystoppat } = useLocalSearchParams<{
     jaktdagId: string;
     drevId: string;
+    nystoppat?: string;
   }>();
+  const varNystoppat = nystoppat === "1";
 
-  const [drev, setDrev] = useState<Drev | null>(null);
+  const [drev, setDrev] = useState<DrevMedHundnamn | null>(null);
+  const [hundarPaJaktdagen, setHundarPaJaktdagen] = useState<Hund[]>([]);
+  const [hundId, setHundId] = useState("");
+  const [startTimestamp, setStartTimestamp] = useState(0);
+  const [endTimestamp, setEndTimestamp] = useState(0);
   const [species, setSpecies] = useState("");
   const [outcome, setOutcome] = useState("");
   const [sparar, setSparar] = useState(false);
+  const [raderar, setRaderar] = useState(false);
+  const [visaRaderaBekraftelse, setVisaRaderaBekraftelse] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
 
   useFocusEffect(
@@ -46,55 +68,87 @@ export default function DrevViltartUtfall() {
 
       (async () => {
         const db = await getDatabase();
-        const d = await hamtaDrev(db, drevId);
+        const [d, hundar] = await Promise.all([
+          hamtaDrevMedHundnamn(db, drevId),
+          hamtaHundarForJaktdag(db, jaktdagId),
+        ]);
         if (avbruten) {
           return;
         }
         if (d) {
           setDrev(d);
+          setHundId(d.hundId);
+          setStartTimestamp(d.startTimestamp);
+          setEndTimestamp(d.endTimestamp ?? d.startTimestamp);
           setSpecies(d.species ?? "");
           setOutcome(d.outcome ?? "");
         }
+        setHundarPaJaktdagen(hundar);
+        setVisaRaderaBekraftelse(false);
         setFel(null);
       })();
 
       return () => {
         avbruten = true;
       };
-    }, [drevId]),
+    }, [drevId, jaktdagId]),
   );
 
   const tillbaka = () => {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace(`/jaktdag/${jaktdagId}/timer`);
+      router.replace("/");
     }
   };
 
+  const duration = Math.max(0, endTimestamp - startTimestamp);
+  const kanSpara = endTimestamp > startTimestamp;
+
   const spara = async () => {
-    if (sparar) {
+    if (sparar || !kanSpara) {
       return;
     }
     setFel(null);
     setSparar(true);
     try {
       const db = await getDatabase();
-      await uppdateraDrevViltartUtfall(db, drevId, { species, outcome });
+      await uppdateraDrev(db, drevId, {
+        hundId,
+        startTimestamp,
+        endTimestamp,
+        species,
+        outcome,
+      });
       tillbaka();
     } catch (e) {
-      setFel(
-        e instanceof Error ? e.message : "Kunde inte spara viltart/utfall.",
-      );
+      setFel(e instanceof Error ? e.message : "Kunde inte spara drevet.");
       setSparar(false);
     }
   };
 
-  const hoppaOver = () => {
+  const avbryt = () => {
     if (sparar) {
       return;
     }
     tillbaka();
+  };
+
+  const bekraftaRadering = async () => {
+    if (raderar) {
+      return;
+    }
+    setFel(null);
+    setRaderar(true);
+    try {
+      const db = await getDatabase();
+      await raderaDrev(db, drevId);
+      tillbaka();
+    } catch (e) {
+      setFel(e instanceof Error ? e.message : "Kunde inte radera drevet.");
+      setRaderar(false);
+      setVisaRaderaBekraftelse(false);
+    }
   };
 
   if (!drev) {
@@ -111,10 +165,46 @@ export default function DrevViltartUtfall() {
       contentContainerStyle={styles.innehall}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.rubrik, { color: colors.text }]}>Drevet stoppat</Text>
-      <Text style={[styles.undertitel, { color: colors.textMuted }]}>
-        {formateraTid(drev.duration ?? 0)} - vill du ange viltart och utfall?
+      <Text style={[styles.rubrik, { color: colors.text }]}>
+        {varNystoppat ? "Drevet stoppat" : "Redigera drev"}
       </Text>
+      <Text style={[styles.undertitel, { color: colors.textMuted }]}>
+        {formateraTid(duration)}
+        {varNystoppat ? " - vill du ange viltart och utfall?" : ""}
+      </Text>
+
+      <View style={styles.faltblock}>
+        <Text style={[styles.sektionLabel, { color: colors.text }]}>Hund</Text>
+        {hundarPaJaktdagen.length > 1 ? (
+          <View style={styles.lista}>
+            {hundarPaJaktdagen.map((h) => (
+              <SelectableCard
+                key={h.id}
+                titel={h.namn}
+                vald={h.id === hundId}
+                onPress={() => setHundId(h.id)}
+                typ="radio"
+              />
+            ))}
+          </View>
+        ) : (
+          <Text style={[styles.hundNamn, { color: colors.textMuted }]}>
+            {drev.hundNamn}
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.faltblock}>
+        <Text style={[styles.sektionLabel, { color: colors.text }]}>Tid</Text>
+        <TidField label="Start" value={startTimestamp} onChange={setStartTimestamp} />
+        <TidField label="Slut" value={endTimestamp} onChange={setEndTimestamp} />
+        {!kanSpara && (
+          <InlineBanner
+            text="Sluttiden måste vara efter starttiden."
+            typ="error"
+          />
+        )}
+      </View>
 
       <View style={styles.faltblock}>
         <ChipSelect
@@ -134,13 +224,44 @@ export default function DrevViltartUtfall() {
       {fel && <InlineBanner text={fel} typ="error" />}
 
       <View style={styles.knappblock}>
-        <BigButton label="Spara" onPress={spara} laddar={sparar} />
+        <BigButton label="Spara" onPress={spara} laddar={sparar} disabled={!kanSpara} />
         <BigButton
-          label="Hoppa över"
+          label={varNystoppat ? "Hoppa över" : "Avbryt"}
           variant="secondary"
-          onPress={hoppaOver}
+          onPress={avbryt}
           disabled={sparar}
         />
+      </View>
+
+      <View style={styles.raderaBlock}>
+        {!visaRaderaBekraftelse ? (
+          <BigButton
+            label="Radera drev"
+            variant="danger"
+            onPress={() => setVisaRaderaBekraftelse(true)}
+            laddar={raderar}
+            liten
+          />
+        ) : (
+          <View style={styles.knappblock}>
+            <InlineBanner
+              text="Det här drevet raderas permanent. Det går inte att ångra."
+              typ="error"
+            />
+            <BigButton
+              label="Ja, radera permanent"
+              variant="danger"
+              onPress={bekraftaRadering}
+              laddar={raderar}
+            />
+            <BigButton
+              label="Avbryt"
+              variant="secondary"
+              onPress={() => setVisaRaderaBekraftelse(false)}
+              disabled={raderar}
+            />
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -157,6 +278,10 @@ const styles = StyleSheet.create({
   },
   rubrik: { fontSize: 26, fontWeight: "800" },
   undertitel: { fontSize: 15, fontWeight: "600", marginTop: -12 },
-  faltblock: { gap: 20 },
+  faltblock: { gap: 12 },
+  sektionLabel: { fontSize: 15, fontWeight: "600" },
+  hundNamn: { fontSize: 17, fontWeight: "700" },
+  lista: { gap: 10 },
   knappblock: { gap: 12, marginTop: 8 },
+  raderaBlock: { marginTop: 4, gap: 12 },
 });

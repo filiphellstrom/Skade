@@ -87,3 +87,40 @@ export interface HundMedSenasteJaktdag {
   senasteJaktDatum: UnixTimestamp | null;
   totalDrevtid: number;
 }
+
+/**
+ * Sprint 3 (historik): en avslutad jaktdag med antal drev och total
+ * drevtid för just den dagen - se hamtaAvslutadeJaktdagarForProfil() i
+ * queries/statistik.ts. Loggens listvy (app/historik/index.tsx) behöver
+ * inte fler jaktdag-fält än de som redan finns på Jaktdag.
+ */
+export interface JaktdagMedSummering extends Jaktdag {
+  antalDrev: number;
+  totalDrevtid: number;
+}
+
+/** Ett drev inklusive hundens namn - för jaktdag-detaljvyn (app/historik/[jaktdagId].tsx). */
+export interface DrevMedHundnamn extends Drev {
+  hundNamn: string;
+}
+
+/** Ett namngivet antal, t.ex. en viltart eller ett utfall och hur många drev det gäller. */
+export interface Fordelningspost {
+  namn: string;
+  antal: number;
+}
+
+/**
+ * Sammanställd statistik för en hund - se hamtaStatistikPerHund() i
+ * queries/statistik.ts. viltartFordelning/utfallFordelning är sorterade
+ * fallande på antal; "Okänt" används som namn för drev utan
+ * species/outcome satt.
+ */
+export interface HundStatistik {
+  hundId: Uuid;
+  namn: string;
+  antalDrev: number;
+  totalDrevtid: number;
+  viltartFordelning: Fordelningspost[];
+  utfallFordelning: Fordelningspost[];
+}

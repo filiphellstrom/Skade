@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useThemeColors } from "@/theme/colors";
+import { Stegare } from "@/components/Stegare";
 import type { UnixTimestamp } from "@/db/types";
 
 interface BirthDateFieldProps {
@@ -35,9 +36,11 @@ function standardStartdatum(): UnixTimestamp {
  * bara täcker "idag/igår/några dagar bak" för en jaktdag). Ett
  * födelsedatum kan ligga många år tillbaka, så tre fristående steppare
  * (Dag/Månad/År) används istället för chips - samma tryckbara ‹ ›-mönster
- * som DateFields "annat datum"-läge, bara upprepat tre gånger. Ingen
+ * som DateFields "annat datum"-läge, bara upprepat tre gånger (via den
+ * delade `Stegare`-komponenten, se dess egen kommentar). Ingen
  * kalender-/date-picker-bibliotek läggs till (samma avvägning som gjordes
- * för jaktdagens datum i Sprint 2).
+ * för jaktdagens datum i Sprint 2). Se även DatumField.tsx (Sprint 3) för
+ * samma mönster utan null-läget, använt i periodfiltret.
  */
 export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
   const colors = useThemeColors();
@@ -103,34 +106,6 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
   );
 }
 
-function Stegare({
-  label,
-  varde,
-  onMinus,
-  onPlus,
-}: {
-  label: string;
-  varde: string;
-  onMinus: () => void;
-  onPlus: () => void;
-}) {
-  const colors = useThemeColors();
-  return (
-    <View style={[styles.stegareBlock, { borderColor: colors.border }]}>
-      <Text style={[styles.stegareLabel, { color: colors.textMuted }]}>{label}</Text>
-      <View style={styles.stegareRad}>
-        <Pressable accessibilityRole="button" onPress={onMinus} style={styles.stegareKnapp} hitSlop={8}>
-          <Text style={[styles.stegarePil, { color: colors.text }]}>‹</Text>
-        </Pressable>
-        <Text style={[styles.stegareVarde, { color: colors.text }]}>{varde}</Text>
-        <Pressable accessibilityRole="button" onPress={onPlus} style={styles.stegareKnapp} hitSlop={8}>
-          <Text style={[styles.stegarePil, { color: colors.text }]}>›</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   angeKnapp: {
     borderWidth: 2,
@@ -141,19 +116,6 @@ const styles = StyleSheet.create({
   angeText: { fontSize: 16, fontWeight: "600" },
   block: { gap: 8 },
   rad: { flexDirection: "row", gap: 8 },
-  stegareBlock: {
-    flex: 1,
-    borderWidth: 2,
-    borderRadius: 14,
-    paddingVertical: 8,
-    alignItems: "center",
-    gap: 4,
-  },
-  stegareLabel: { fontSize: 12, fontWeight: "600" },
-  stegareRad: { flexDirection: "row", alignItems: "center" },
-  stegareKnapp: { paddingHorizontal: 10, paddingVertical: 8 },
-  stegarePil: { fontSize: 22, fontWeight: "700" },
-  stegareVarde: { fontSize: 16, fontWeight: "700", minWidth: 36, textAlign: "center" },
   taBortKnapp: { alignSelf: "center", paddingVertical: 8 },
   taBortText: { fontSize: 14, fontWeight: "600", textDecorationLine: "underline" },
 });

@@ -33,11 +33,14 @@ import { useThemeColors } from "@/theme/colors";
  * varje sekund; startTimestamp är källan till sanning.
  *
  * Sprint 3: när ett drev stoppas navigeras man direkt vidare till
- * app/jaktdag/[jaktdagId]/drev/[drevId].tsx för att (valfritt) välja
- * viltart/utfall - se stopp() nedan. Den vyn har egna Spara/Hoppa över-
- * knappar (beslutat 2026-08-29, ersätter ett tidigare försök med
- * spara-direkt-chips direkt här på timern). `senasteDrev` hämtas ändå kvar
- * vid mount/fokus (hamtaSenasteDrev()) bara för att visa "Senaste drevet:
+ * app/jaktdag/[jaktdagId]/drev/[drevId].tsx (med query-param
+ * `?nystoppat=1`) för att (valfritt) välja viltart/utfall - se stopp()
+ * nedan. Den vyn har egna Spara/Hoppa över-knappar (beslutat 2026-08-29,
+ * ersätter ett tidigare försök med spara-direkt-chips direkt här på
+ * timern) och kan numera även nås från historiken för att redigera/radera
+ * ett äldre drev - `nystoppat`-flaggan styr bara rubrik/knapptext där, se
+ * den skärmens egen kommentar. `senasteDrev` hämtas ändå kvar vid
+ * mount/fokus (hamtaSenasteDrev()) bara för att visa "Senaste drevet:
  * mm:ss" på timern - ingen inmatning kvar här.
  */
 export default function Timer() {
@@ -126,7 +129,7 @@ export default function Timer() {
       const avslutatDrev = await stoppaDrev(db, pagaendeDrev.id);
       setSenasteDrev(avslutatDrev);
       setPagaendeDrev(null);
-      router.push(`/jaktdag/${jaktdagId}/drev/${avslutatDrev.id}`);
+      router.push(`/jaktdag/${jaktdagId}/drev/${avslutatDrev.id}?nystoppat=1`);
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte stoppa drevet.");
     } finally {

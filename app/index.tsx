@@ -44,6 +44,12 @@ import { useThemeColors } from "@/theme/colors";
  * för redigering/arkivering/radering (InfoRow tar en valfri onPress-prop).
  * En liten länk under hundlistan leder vidare till app/hund/arkiverade.tsx.
  *
+ * En egen "Historik"-knapp leder till app/historik/index.tsx (logg över
+ * avslutade jaktdagar + länk vidare till statistik per hund) - placerad
+ * som en tydlig sekundärknapp, inte en liten länk, eftersom historik/
+ * statistik är ett av appens huvudsyften (se projektbeskrivningen), inte
+ * en sällan använd admin-funktion som arkiverade hundar.
+ *
  * Datan hämtas om varje gång skärmen får fokus (useFocusEffect), inte bara
  * vid första monteringen. Orsak (bugg hittad av Filip 2026-08-23): en
  * router.back() hit - t.ex. efter att ha lagt till en hund via
@@ -170,6 +176,12 @@ export default function HuvudSkarm() {
           onPress={() => router.push("/jaktdag/ny")}
         />
       )}
+
+      <BigButton
+        label="Historik"
+        variant="secondary"
+        onPress={() => router.push("/historik")}
+      />
 
       <View style={styles.block}>
         <Text style={[styles.delrubrik, { color: colors.text }]}>
