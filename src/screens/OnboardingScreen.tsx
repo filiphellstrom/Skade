@@ -34,7 +34,11 @@ interface OnboardingScreenProps {
  *
  * Sprint 4 (2026-08-30): kort introtext tillagd ovanför fälten - tips från
  * Filips fru om att nya användare (t.ex. vänner som testar webbversionen)
- * behöver förstå VAD appen gör innan de bara möts av två textfält.
+ * behöver förstå VAD appen gör innan de bara möts av två textfält. Samma
+ * dag: en kort kursiv rad tillagd om varifrån namnet "Skade" kommer
+ * (jaktens gudinna i nordisk mytologi) - medvetet mindre/kursiv stil
+ * (styles.namnfakta) för att skilja den lilla kuriosan från den
+ * funktionella introtexten ovanför och instruktionsraden nedanför.
  */
 export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
   const colors = useThemeColors();
@@ -81,6 +85,10 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
             Skade är din digitala jaktdagbok - ta tiden på varje drev, se
             vilket vilt som drevs, och håll koll på dina hundars insatser
             över tid.
+          </Text>
+          <Text style={[styles.namnfakta, { color: colors.textMuted }]}>
+            Appen är uppkallad efter Skade, jaktens gudinna i nordisk
+            mytologi.
           </Text>
           <Text style={[styles.ingress, { color: colors.textMuted }]}>
             Innan du kör igång behöver vi ditt namn och namnet på din första
@@ -157,6 +165,7 @@ const styles = StyleSheet.create({
   rubrikblock: { gap: 8, marginBottom: 12 },
   rubrik: { fontSize: 28, fontWeight: "800" },
   intro: { fontSize: 16, lineHeight: 22 },
+  namnfakta: { fontSize: 13, lineHeight: 18, fontStyle: "italic" },
   ingress: { fontSize: 16, lineHeight: 22, fontWeight: "600" },
   falt: { gap: 8 },
   etikett: { fontSize: 15, fontWeight: "600" },
