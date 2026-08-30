@@ -31,6 +31,10 @@ interface OnboardingScreenProps {
  *
  * Renderas direkt av app/_layout.tsx (inte via router.replace) så det inte
  * finns någon "bakåt"-väg ut ur onboardingen.
+ *
+ * Sprint 4 (2026-08-30): kort introtext tillagd ovanför fälten - tips från
+ * Filips fru om att nya användare (t.ex. vänner som testar webbversionen)
+ * behöver förstå VAD appen gör innan de bara möts av två textfält.
  */
 export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
   const colors = useThemeColors();
@@ -72,6 +76,11 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
         <View style={styles.rubrikblock}>
           <Text style={[styles.rubrik, { color: colors.text }]}>
             Välkommen till Skade
+          </Text>
+          <Text style={[styles.intro, { color: colors.textMuted }]}>
+            Skade är din digitala jaktdagbok - ta tiden på varje drev, se
+            vilket vilt som drevs, och håll koll på dina hundars insatser
+            över tid.
           </Text>
           <Text style={[styles.ingress, { color: colors.textMuted }]}>
             Innan du kör igång behöver vi ditt namn och namnet på din första
@@ -147,7 +156,8 @@ const styles = StyleSheet.create({
   },
   rubrikblock: { gap: 8, marginBottom: 12 },
   rubrik: { fontSize: 28, fontWeight: "800" },
-  ingress: { fontSize: 16, lineHeight: 22 },
+  intro: { fontSize: 16, lineHeight: 22 },
+  ingress: { fontSize: 16, lineHeight: 22, fontWeight: "600" },
   falt: { gap: 8 },
   etikett: { fontSize: 15, fontWeight: "600" },
   input: {
