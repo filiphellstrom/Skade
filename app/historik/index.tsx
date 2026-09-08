@@ -8,9 +8,11 @@ import type { JaktdagMedSummering } from "@/db/types";
 import { BackButton } from "@/components/BackButton";
 import { BigButton } from "@/components/BigButton";
 import { InfoRow } from "@/components/InfoRow";
+import { InlineBanner } from "@/components/InlineBanner";
 import { PeriodFilter } from "@/components/PeriodFilter";
 import { formateraTid } from "@/hooks/useElapsedTime";
 import { useThemeColors } from "@/theme/colors";
+import { exporteraHistorikSomCsv } from "@/utils/export";
 import { periodTillIntervall, type HistorikPeriod } from "@/utils/period";
 
 /**
@@ -32,6 +34,12 @@ import { periodTillIntervall, type HistorikPeriod } from "@/utils/period";
  * useFocusEffect så listan är färsk om man avslutar en ny jaktdag, eller
  * redigerar/raderar ett drev och går tillbaka hit - samma mönster som
  * resten av appen.
+ *
+ * Sprint 4 (2026-09-08): "Exportera CSV"-knapp - exporterar ALL historik
+ * (alla stoppade drev, oberoende av periodfiltret nedan - Filip: "All
+ * historik (alla drev)"), inte bara det som just nu är filtrerat i
+ * listan. Se src/utils/export.ts för själva CSV-bygget och den
+ * plattformsberoende ladda ner/dela-logiken.
  */
 export default function Historik() {
   const colors = useThemeColors();
@@ -39,6 +47,8 @@ export default function Historik() {
 
   const [period, setPeriod] = useState<HistorikPeriod>({ typ: "allt" });
   const [jaktdagar, setJaktdagar] = useState<JaktdagMedSummering[] | null>(null);
+  const [exporterar, setExporterar] = useState(false);
+  const [exportFel, setExportFel] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -59,6 +69,24 @@ export default function Historik() {
     }, [profil.id, period]),
   );
 
+  const exportera = async () => {
+    if (exporterar) {
+      return;
+    }
+    setExportFel(null);
+    setExporterar(true);
+    try {
+      const db = await getDatabase();
+      await exporteraHistorikSomCsv(db, profil.id);
+    } catch (e) {
+      setExportFel(
+        e instanceof Error ? e.message : "Kunde inte exportera historiken.",
+      );
+    } finally {
+      setExporterar(false);
+    }
+  };
+
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
       <View style={styles.backRad}>
@@ -73,6 +101,14 @@ export default function Historik() {
           variant="secondary"
           onPress={() => router.push("/historik/statistik")}
         />
+
+        <BigButton
+          label="Exportera CSV"
+          variant="secondary"
+          onPress={exportera}
+          laddar={exporterar}
+        />
+        {exportFel && <InlineBanner text={exportFel} typ="error" />}
 
         <PeriodFilter value={period} onChange={setPeriod} />
 
