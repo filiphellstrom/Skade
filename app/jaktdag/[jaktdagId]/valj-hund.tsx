@@ -27,6 +27,10 @@ import { useThemeColors } from "@/theme/colors";
  * Om fler än en hund väljs visas ett extra "vilken hund driver just nu"-
  * val innan man kan bekräfta. Väljs bara en hund sätts den automatiskt
  * som aktiv.
+ *
+ * 2026-09-08: rubriken bytt från "Välj hund" till "Välj hundar som ska
+ * jaga" - tydligare att man kan välja flera. Texten används bara här
+ * (kontrollerat att inget annat skärm återanvänder strängen).
  */
 export default function ValjHund() {
   const colors = useThemeColors();
@@ -136,7 +140,9 @@ export default function ValjHund() {
         visaTillbaka
       />
 
-      <Text style={[styles.rubrik, { color: colors.text }]}>Välj hund</Text>
+      <Text style={[styles.rubrik, { color: colors.text }]}>
+        Välj hundar som ska jaga
+      </Text>
 
       {hundar.length === 0 ? (
         <View style={styles.tomtLista}>

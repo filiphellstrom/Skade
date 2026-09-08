@@ -40,6 +40,16 @@ const UTFALL = ["Fälld", "Missad", "Ingen kontakt"];
  * Båda entry-lägena delar samma Spara-logik (uppdateraDrev, lokalt state
  * tills man trycker Spara) och samma Radera-flöde (raderaDrev, samma
  * bekräftelsemönster som "Radera hund").
+ *
+ * 2026-09-08: ordningen på skärmen ändrad - "Hoppa över"/"Avbryt" och
+ * "Radera drev" (med hela raderingsflödet, halva knapphöjden bevarad)
+ * flyttade upp till direkt under rubriken/undertiteln, så de snabba
+ * escape-vägarna nås utan att scrolla förbi alla fälten. "Spara" ligger
+ * kvar sist, efter Hund/Tid/Viltart-sektionerna - man ska ha sett allt man
+ * fyllt i innan man committar. Gäller båda lägena (nystoppat och
+ * redigering). Felbannern (`fel`) flyttades samtidigt upp till direkt
+ * under undertiteln så den syns oavsett om det var Spara eller Radera som
+ * gick fel, utan att behöva scrolla.
  */
 export default function RedigeraDrev() {
   const colors = useThemeColors();
@@ -173,6 +183,48 @@ export default function RedigeraDrev() {
         {varNystoppat ? " - vill du ange viltart och utfall?" : ""}
       </Text>
 
+      {fel && <InlineBanner text={fel} typ="error" />}
+
+      <View style={styles.knappblock}>
+        <BigButton
+          label={varNystoppat ? "Hoppa över" : "Avbryt"}
+          variant="secondary"
+          onPress={avbryt}
+          disabled={sparar}
+        />
+      </View>
+
+      <View style={styles.raderaBlock}>
+        {!visaRaderaBekraftelse ? (
+          <BigButton
+            label="Radera drev"
+            variant="danger"
+            onPress={() => setVisaRaderaBekraftelse(true)}
+            laddar={raderar}
+            liten
+          />
+        ) : (
+          <View style={styles.knappblock}>
+            <InlineBanner
+              text="Det här drevet raderas permanent. Det går inte att ångra."
+              typ="error"
+            />
+            <BigButton
+              label="Ja, radera permanent"
+              variant="danger"
+              onPress={bekraftaRadering}
+              laddar={raderar}
+            />
+            <BigButton
+              label="Avbryt"
+              variant="secondary"
+              onPress={() => setVisaRaderaBekraftelse(false)}
+              disabled={raderar}
+            />
+          </View>
+        )}
+      </View>
+
       <View style={styles.faltblock}>
         <Text style={[styles.sektionLabel, { color: colors.text }]}>Hund</Text>
         {hundarPaJaktdagen.length > 1 ? (
@@ -221,47 +273,8 @@ export default function RedigeraDrev() {
         />
       </View>
 
-      {fel && <InlineBanner text={fel} typ="error" />}
-
       <View style={styles.knappblock}>
         <BigButton label="Spara" onPress={spara} laddar={sparar} disabled={!kanSpara} />
-        <BigButton
-          label={varNystoppat ? "Hoppa över" : "Avbryt"}
-          variant="secondary"
-          onPress={avbryt}
-          disabled={sparar}
-        />
-      </View>
-
-      <View style={styles.raderaBlock}>
-        {!visaRaderaBekraftelse ? (
-          <BigButton
-            label="Radera drev"
-            variant="danger"
-            onPress={() => setVisaRaderaBekraftelse(true)}
-            laddar={raderar}
-            liten
-          />
-        ) : (
-          <View style={styles.knappblock}>
-            <InlineBanner
-              text="Det här drevet raderas permanent. Det går inte att ångra."
-              typ="error"
-            />
-            <BigButton
-              label="Ja, radera permanent"
-              variant="danger"
-              onPress={bekraftaRadering}
-              laddar={raderar}
-            />
-            <BigButton
-              label="Avbryt"
-              variant="secondary"
-              onPress={() => setVisaRaderaBekraftelse(false)}
-              disabled={raderar}
-            />
-          </View>
-        )}
       </View>
     </ScrollView>
   );
