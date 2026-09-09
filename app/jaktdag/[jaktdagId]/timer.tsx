@@ -42,6 +42,16 @@ import { useThemeColors } from "@/theme/colors";
  * den skärmens egen kommentar. `senasteDrev` hämtas ändå kvar vid
  * mount/fokus (hamtaSenasteDrev()) bara för att visa "Senaste drevet:
  * mm:ss" på timern - ingen inmatning kvar här.
+ *
+ * 2026-09-08: `ScreenHeader` satt utanför `scrollInnehall` (för att den
+ * inte ska scrolla bort) men `styles.container` som håller den saknade
+ * `paddingHorizontal` - "‹ Tillbaka"/jaktmark/datum satt då helt utan
+ * sidoinset, till skillnad från samma header på Välj hundar/historikens
+ * detaljvy där den ligger inuti en redan padda ScrollView. Löst genom att
+ * flytta det horisontella insetet till `container` (gäller nu både
+ * headern och scrollinnehållet) istället för att bara ha det på
+ * `scrollInnehall` - synligt totalt inset oförändrat för allt under
+ * headern.
  */
 export default function Timer() {
   const colors = useThemeColors();
@@ -271,12 +281,12 @@ const styles = StyleSheet.create({
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
   container: {
     flex: 1,
+    paddingHorizontal: 24,
     paddingTop: 24,
   },
   scrollInnehall: {
     flexGrow: 1,
     justifyContent: "space-between",
-    paddingHorizontal: 24,
     paddingBottom: 32,
     gap: 24,
   },
