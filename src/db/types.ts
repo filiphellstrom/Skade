@@ -57,6 +57,13 @@ export interface Jaktmark {
   updatedAt: UnixTimestamp;
 }
 
+/** Jaktmark med summering - Jaktmarker-fliken och väljaren i Ny jaktdag. */
+export interface JaktmarkMedSummering extends Jaktmark {
+  antalJaktdagar: number;
+  senastDatum: UnixTimestamp | null;
+  totalDrevtid: number;
+}
+
 export interface Jaktdag {
   id: Uuid;
   profilId: Uuid;

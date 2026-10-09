@@ -1,19 +1,14 @@
 import { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { skapaHund } from "@/db/queries/hund";
 import { useProfil } from "@/contexts/ProfilContext";
-import { BigButton } from "@/components/BigButton";
 import { InlineBanner } from "@/components/InlineBanner";
-import { useThemeColors } from "@/theme/colors";
+import { avstand } from "@/theme/tokens";
+import { Knapp } from "@/components/ui/Knapp";
+import { Falt, Skarm } from "@/components/ui/Delar";
+import { Txt } from "@/components/ui/Txt";
 
 /**
  * Lägg till en (ytterligare) hund. Första hunden skapas redan i
@@ -26,7 +21,6 @@ import { useThemeColors } from "@/theme/colors";
  * går man tillbaka dit man kom ifrån; båda listorna hämtas om vid fokus.
  */
 export default function NyHund() {
-  const colors = useThemeColors();
   const { profil } = useProfil();
 
   const [namn, setNamn] = useState("");
@@ -58,71 +52,37 @@ export default function NyHund() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: colors.background }]}
+      style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.innehall}>
-        <Text style={[styles.rubrik, { color: colors.text }]}>
+      <Skarm>
+        <Txt variant="title1" accessibilityRole="header">
           Lägg till hund
-        </Text>
+        </Txt>
 
-        <View style={styles.falt}>
-          <Text style={[styles.etikett, { color: colors.text }]}>Namn</Text>
-          <TextInput
-            value={namn}
-            onChangeText={setNamn}
-            placeholder="T.ex. Aston"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="words"
-            autoFocus
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-              },
-            ]}
-          />
-        </View>
+        <Falt
+          etikett="Namn"
+          value={namn}
+          onChangeText={setNamn}
+          placeholder="T.ex. Aston"
+          autoCapitalize="words"
+          autoFocus
+          onSubmitEditing={sparaHund}
+          returnKeyType="done"
+        />
 
         {fel && <InlineBanner text={fel} typ="error" />}
 
         <View style={styles.knappblock}>
-          <BigButton
-            label="Spara hund"
-            onPress={sparaHund}
-            disabled={!kanSpara}
-            laddar={sparar}
-          />
-          <BigButton
-            label="Avbryt"
-            variant="secondary"
-            onPress={() => router.back()}
-          />
+          <Knapp titel="Spara hund" onPress={sparaHund} disabled={!kanSpara} laddar={sparar} />
+          <Knapp titel="Avbryt" variant="sekundar" onPress={() => router.back()} />
         </View>
-      </View>
+      </Skarm>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  innehall: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    gap: 20,
-  },
-  rubrik: { fontSize: 28, fontWeight: "800", marginBottom: 4 },
-  falt: { gap: 8 },
-  etikett: { fontSize: 15, fontWeight: "600" },
-  input: {
-    borderWidth: 2,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 18,
-  },
-  knappblock: { marginTop: 12, gap: 12 },
+  knappblock: { gap: avstand.s3 },
 });

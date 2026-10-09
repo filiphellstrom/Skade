@@ -9,6 +9,8 @@ interface StegareProps {
   varde: string;
   onMinus: () => void;
   onPlus: () => void;
+  /** Läses upp före etiketten, t.ex. "Start" → "Start timme, minska". */
+  a11yPrefix?: string;
 }
 
 /**
@@ -17,8 +19,9 @@ interface StegareProps {
  * tap-min är 56 px men tre stegare måste få plats bredvid varandra på
  * 390 px - flaggat i sprint-6-designlyft.md).
  */
-export function Stegare({ label, varde, onMinus, onPlus }: StegareProps) {
+export function Stegare({ label, varde, onMinus, onPlus, a11yPrefix }: StegareProps) {
   const f = useFarger();
+  const namn = a11yPrefix ? `${a11yPrefix} ${label.toLowerCase()}` : label;
   return (
     <View style={styles.block}>
       <Txt variant="caption" farg="inkMuted">
@@ -27,7 +30,7 @@ export function Stegare({ label, varde, onMinus, onPlus }: StegareProps) {
       <View style={styles.rad}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${label}, minska`}
+          accessibilityLabel={`${namn}, minska`}
           onPress={onMinus}
           hitSlop={4}
           style={({ pressed }) => [styles.knapp, { backgroundColor: f.surface300, opacity: pressed ? 0.8 : 1 }]}
@@ -39,7 +42,7 @@ export function Stegare({ label, varde, onMinus, onPlus }: StegareProps) {
         </Txt>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${label}, öka`}
+          accessibilityLabel={`${namn}, öka`}
           onPress={onPlus}
           hitSlop={4}
           style={({ pressed }) => [styles.knapp, { backgroundColor: f.surface300, opacity: pressed ? 0.8 : 1 }]}

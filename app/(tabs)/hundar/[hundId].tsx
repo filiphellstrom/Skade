@@ -1,14 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
 import {
@@ -20,11 +11,13 @@ import {
   uppdateraHund,
 } from "@/db/queries/hund";
 import type { Hund, UnixTimestamp } from "@/db/types";
-import { BackButton } from "@/components/BackButton";
-import { BigButton } from "@/components/BigButton";
 import { BirthDateField } from "@/components/BirthDateField";
 import { InlineBanner } from "@/components/InlineBanner";
-import { useThemeColors } from "@/theme/colors";
+import { useFarger } from "@/theme/TemaContext";
+import { avstand } from "@/theme/tokens";
+import { Knapp } from "@/components/ui/Knapp";
+import { Falt, Skarm, TillbakaKnapp } from "@/components/ui/Delar";
+import { Txt } from "@/components/ui/Txt";
 
 /**
  * Redigera en hund - öppnas genom att trycka på hunden i huvudskärmens
@@ -60,7 +53,7 @@ import { useThemeColors } from "@/theme/colors";
  * nära skärmkanten.
  */
 export default function RedigeraHund() {
-  const colors = useThemeColors();
+  const f = useFarger();
   const { hundId } = useLocalSearchParams<{ hundId: string }>();
 
   const [hund, setHund] = useState<Hund | null>(null);
@@ -208,181 +201,94 @@ export default function RedigeraHund() {
 
   if (!hund) {
     return (
-      <View style={[styles.laddar, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.laddar, { backgroundColor: f.surface100 }]}>
+        <ActivityIndicator size="large" color={f.brand} />
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: colors.background }]}
+      style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.backRad}>
-        <BackButton />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.innehall}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={[styles.rubrik, { color: colors.text }]}>
-          {hund.namn}
-        </Text>
-
-        {hund.arkiverad === 1 && (
-          <InlineBanner text="Den här hunden är arkiverad." typ="info" />
-        )}
-
-        <View style={styles.falt}>
-          <Text style={[styles.etikett, { color: colors.text }]}>Namn</Text>
-          <TextInput
-            value={namn}
-            onChangeText={setNamn}
-            placeholder="T.ex. Aston"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="words"
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-              },
-            ]}
-          />
+      <Skarm>
+        <View style={styles.topp}>
+          <TillbakaKnapp />
+          <Txt variant="title1" accessibilityRole="header">
+            {hund.namn}
+          </Txt>
         </View>
 
-        <View style={styles.falt}>
-          <Text style={[styles.etikett, { color: colors.text }]}>Ras</Text>
-          <TextInput
-            value={ras}
-            onChangeText={setRas}
-            placeholder="T.ex. Norsk älghund"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="words"
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-              },
-            ]}
-          />
-        </View>
+        {hund.arkiverad === 1 && <InlineBanner text="Den här hunden är arkiverad." typ="info" />}
 
+        <Falt etikett="Namn" value={namn} onChangeText={setNamn} placeholder="T.ex. Aston" autoCapitalize="words" />
+        <Falt etikett="Ras" value={ras} onChangeText={setRas} placeholder="T.ex. Norsk älghund" autoCapitalize="words" />
         <View style={styles.falt}>
-          <Text style={[styles.etikett, { color: colors.text }]}>
-            Födelsedatum
-          </Text>
+          <Txt variant="heading">Födelsedatum</Txt>
           <BirthDateField value={fodelsedatum} onChange={setFodelsedatum} />
         </View>
-
-        <View style={styles.falt}>
-          <Text style={[styles.etikett, { color: colors.text }]}>
-            Kommentar
-          </Text>
-          <TextInput
-            value={kommentar}
-            onChangeText={setKommentar}
-            placeholder="Valfri anteckning"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="sentences"
-            multiline
-            style={[
-              styles.input,
-              styles.inputMultiline,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-              },
-            ]}
-          />
-        </View>
+        <Falt
+          etikett="Kommentar"
+          value={kommentar}
+          onChangeText={setKommentar}
+          placeholder="Valfri anteckning"
+          autoCapitalize="sentences"
+          multiline
+          style={styles.inputMultiline}
+        />
 
         {fel && <InlineBanner text={fel} typ="error" />}
 
-        <View style={styles.knappblock}>
-          <BigButton
-            label="Spara ändringar"
-            onPress={spara}
-            disabled={!kanSpara}
-            laddar={sparar}
-          />
-        </View>
+        <Knapp titel="Spara ändringar" onPress={spara} disabled={!kanSpara} laddar={sparar} />
 
         <View style={styles.knappblock}>
           {hund.arkiverad ? (
-            <BigButton
-              label="Återställ hund"
-              variant="secondary"
-              onPress={vaxlaArkivering}
-              laddar={arkiverar}
-            />
+            <Knapp titel="Återställ hund" variant="sekundar" onPress={vaxlaArkivering} laddar={arkiverar} />
           ) : !visaArkiveraBekraftelse ? (
-            <BigButton
-              label="Arkivera hund"
-              variant="secondary"
-              onPress={tryckArkivera}
-              laddar={arkiverar}
-              liten
-            />
+            <View style={styles.smaKnappar}>
+              <Knapp titel="Arkivera hund" variant="faraLiten" onPress={tryckArkivera} laddar={arkiverar} />
+              {!visaRaderaBekraftelse && (
+                <Knapp titel="Radera hund" variant="faraLiten" onPress={tryckRadera} laddar={raderar} />
+              )}
+            </View>
           ) : (
             <View style={styles.knappblock}>
               <InlineBanner
                 text={`${hund.namn} har sparad historik (drev och/eller jaktdagar). Hunden döljs från listorna och går inte att välja för en ny jaktdag, men historiken finns kvar och du kan återställa hunden när du vill.`}
                 typ="info"
               />
-              <BigButton
-                label="Ja, arkivera"
-                variant="secondary"
-                onPress={vaxlaArkivering}
-                laddar={arkiverar}
-              />
-              <BigButton
-                label="Avbryt"
-                variant="secondary"
+              <Knapp titel="Ja, arkivera" variant="sekundar" onPress={vaxlaArkivering} laddar={arkiverar} />
+              <Knapp
+                titel="Avbryt"
+                variant="sekundar"
                 onPress={() => setVisaArkiveraBekraftelse(false)}
                 disabled={arkiverar}
               />
             </View>
           )}
-        </View>
 
-        <View style={styles.raderaBlock}>
-          {!visaRaderaBekraftelse ? (
-            <BigButton
-              label="Radera hund"
-              variant="danger"
-              onPress={tryckRadera}
-              laddar={raderar}
-              liten
-            />
-          ) : (
+          {hund.arkiverad === 1 && !visaRaderaBekraftelse && (
+            <Knapp titel="Radera hund" variant="faraLiten" onPress={tryckRadera} laddar={raderar} />
+          )}
+
+          {visaRaderaBekraftelse && (
             <View style={styles.knappblock}>
               <InlineBanner
                 text={`${hund.namn} har sparad historik (drev och/eller jaktdagar). Raderar du hunden tas den historiken bort permanent - det går inte att ångra.`}
                 typ="error"
               />
-              <BigButton
-                label="Ja, radera permanent"
-                variant="danger"
-                onPress={bekraftaRadering}
-                laddar={raderar}
-              />
-              <BigButton
-                label="Avbryt"
-                variant="secondary"
+              <Knapp titel="Ja, radera permanent" variant="fara" onPress={bekraftaRadering} laddar={raderar} />
+              <Knapp
+                titel="Avbryt"
+                variant="sekundar"
                 onPress={() => setVisaRaderaBekraftelse(false)}
                 disabled={raderar}
               />
             </View>
           )}
         </View>
-      </ScrollView>
+      </Skarm>
     </KeyboardAvoidingView>
   );
 }
@@ -390,30 +296,9 @@ export default function RedigeraHund() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
-  backRad: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  innehall: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 40,
-    gap: 20,
-  },
-  rubrik: { fontSize: 28, fontWeight: "800", marginBottom: 4 },
-  falt: { gap: 8 },
-  etikett: { fontSize: 15, fontWeight: "600" },
-  input: {
-    borderWidth: 2,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-  },
-  inputMultiline: {
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
-  knappblock: { gap: 12 },
-  raderaBlock: { marginTop: 12, gap: 12 },
+  topp: { gap: avstand.s4 },
+  falt: { gap: avstand.s2 },
+  inputMultiline: { minHeight: 96, paddingTop: avstand.s3, textAlignVertical: "top" },
+  knappblock: { gap: avstand.s3 },
+  smaKnappar: { flexDirection: "row", flexWrap: "wrap", gap: avstand.s3 },
 });

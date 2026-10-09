@@ -1,17 +1,21 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { hamtaDrevMedHundnamn, raderaDrev, uppdateraDrev } from "@/db/queries/drev";
 import { hamtaHundarForJaktdag } from "@/db/queries/hund";
 import type { DrevMedHundnamn, Hund } from "@/db/types";
-import { BigButton } from "@/components/BigButton";
 import { ChipSelect } from "@/components/ChipSelect";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SelectableCard } from "@/components/SelectableCard";
 import { TidField } from "@/components/TidField";
 import { formateraTid } from "@/hooks/useElapsedTime";
-import { useThemeColors } from "@/theme/colors";
+import { useFarger } from "@/theme/TemaContext";
+import { avstand } from "@/theme/tokens";
+import { Knapp } from "@/components/ui/Knapp";
+import { Kort } from "@/components/ui/Kort";
+import { Etikett, Felrad, Skarm } from "@/components/ui/Delar";
+import { Txt } from "@/components/ui/Txt";
 
 const VILTARTER = ["Rådjur", "Vildsvin", "Räv", "Hare", "Älg"];
 const UTFALL = ["Fälld", "Missad", "Ingen kontakt"];
@@ -52,7 +56,7 @@ const UTFALL = ["Fälld", "Missad", "Ingen kontakt"];
  * gick fel, utan att behöva scrolla.
  */
 export default function RedigeraDrev() {
-  const colors = useThemeColors();
+  const f = useFarger();
   const { jaktdagId, drevId, nystoppat } = useLocalSearchParams<{
     jaktdagId: string;
     drevId: string;
@@ -163,72 +167,66 @@ export default function RedigeraDrev() {
 
   if (!drev) {
     return (
-      <View style={[styles.laddar, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.laddar, { backgroundColor: f.surface100 }]}>
+        <ActivityIndicator size="large" color={f.brand} />
       </View>
     );
   }
 
+  const hundNamnNu = hundarPaJaktdagen.find((h) => h.id === hundId)?.namn ?? drev.hundNamn;
+
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={styles.innehall}
-      keyboardShouldPersistTaps="handled"
+    <Skarm
+      sidfot={
+        <View style={styles.sidfot}>
+          <Felrad text={!kanSpara ? "Sluttiden måste vara efter starttiden." : fel} />
+          <Knapp titel="Spara" onPress={spara} laddar={sparar} disabled={!kanSpara} />
+        </View>
+      }
     >
-      <Text style={[styles.rubrik, { color: colors.text }]}>
-        {varNystoppat ? "Drevet stoppat" : "Redigera drev"}
-      </Text>
-      <Text style={[styles.undertitel, { color: colors.textMuted }]}>
-        {formateraTid(duration)}
-        {varNystoppat ? " - vill du ange viltart och utfall?" : ""}
-      </Text>
-
-      {fel && <InlineBanner text={fel} typ="error" />}
-
-      <View style={styles.knappblock}>
-        <BigButton
-          label={varNystoppat ? "Hoppa över" : "Avbryt"}
-          variant="secondary"
-          onPress={avbryt}
-          disabled={sparar}
-        />
+      <View>
+        <Txt variant="title1" accessibilityRole="header">
+          {varNystoppat ? "Drevet stoppat" : "Redigera drev"}
+        </Txt>
+        <Txt variant="body" farg="inkMuted" style={styles.undertitel}>
+          {hundNamnNu} · {formateraTid(duration)}
+        </Txt>
       </View>
 
-      <View style={styles.raderaBlock}>
-        {!visaRaderaBekraftelse ? (
-          <BigButton
-            label="Radera drev"
-            variant="danger"
+      {!visaRaderaBekraftelse ? (
+        <View style={styles.toppKnappar}>
+          <Knapp
+            titel={varNystoppat ? "Hoppa över" : "Avbryt"}
+            variant="sekundar"
+            onPress={avbryt}
+            disabled={sparar}
+            fullBredd={false}
+            style={styles.flex1}
+          />
+          <Knapp
+            titel="Radera drev"
+            variant="faraLiten"
             onPress={() => setVisaRaderaBekraftelse(true)}
             laddar={raderar}
-            liten
           />
-        ) : (
-          <View style={styles.knappblock}>
-            <InlineBanner
-              text="Det här drevet raderas permanent. Det går inte att ångra."
-              typ="error"
-            />
-            <BigButton
-              label="Ja, radera permanent"
-              variant="danger"
-              onPress={bekraftaRadering}
-              laddar={raderar}
-            />
-            <BigButton
-              label="Avbryt"
-              variant="secondary"
-              onPress={() => setVisaRaderaBekraftelse(false)}
-              disabled={raderar}
-            />
-          </View>
-        )}
-      </View>
+        </View>
+      ) : (
+        <View style={styles.block}>
+          <InlineBanner text="Det här drevet raderas permanent. Det går inte att ångra." typ="error" />
+          <Knapp titel="Ja, radera permanent" variant="fara" onPress={bekraftaRadering} laddar={raderar} />
+          <Knapp
+            titel="Avbryt"
+            variant="sekundar"
+            onPress={() => setVisaRaderaBekraftelse(false)}
+            disabled={raderar}
+          />
+        </View>
+      )}
 
-      <View style={styles.faltblock}>
-        <Text style={[styles.sektionLabel, { color: colors.text }]}>Hund</Text>
-        {hundarPaJaktdagen.length > 1 ? (
-          <View style={styles.lista}>
+      {hundarPaJaktdagen.length > 1 && (
+        <View>
+          <Etikett>HUND</Etikett>
+          <View style={styles.block}>
             {hundarPaJaktdagen.map((h) => (
               <SelectableCard
                 key={h.id}
@@ -239,62 +237,33 @@ export default function RedigeraDrev() {
               />
             ))}
           </View>
-        ) : (
-          <Text style={[styles.hundNamn, { color: colors.textMuted }]}>
-            {drev.hundNamn}
-          </Text>
-        )}
+        </View>
+      )}
+
+      <View>
+        <Etikett>TID</Etikett>
+        <Kort>
+          <View style={styles.tidblock}>
+            <TidField label="Start" value={startTimestamp} onChange={setStartTimestamp} />
+            <View style={[styles.skiljelinje, { backgroundColor: f.border }]} />
+            <TidField label="Slut" value={endTimestamp} onChange={setEndTimestamp} />
+          </View>
+        </Kort>
       </View>
 
-      <View style={styles.faltblock}>
-        <Text style={[styles.sektionLabel, { color: colors.text }]}>Tid</Text>
-        <TidField label="Start" value={startTimestamp} onChange={setStartTimestamp} />
-        <TidField label="Slut" value={endTimestamp} onChange={setEndTimestamp} />
-        {!kanSpara && (
-          <InlineBanner
-            text="Sluttiden måste vara efter starttiden."
-            typ="error"
-          />
-        )}
-      </View>
-
-      <View style={styles.faltblock}>
-        <ChipSelect
-          label="Viltart"
-          options={VILTARTER}
-          value={species}
-          onChange={setSpecies}
-        />
-        <ChipSelect
-          label="Utfall"
-          options={UTFALL}
-          value={outcome}
-          onChange={setOutcome}
-        />
-      </View>
-
-      <View style={styles.knappblock}>
-        <BigButton label="Spara" onPress={spara} laddar={sparar} disabled={!kanSpara} />
-      </View>
-    </ScrollView>
+      <ChipSelect label="Viltart" options={VILTARTER} value={species} onChange={setSpecies} />
+      <ChipSelect label="Utfall" options={UTFALL} value={outcome} onChange={setOutcome} />
+    </Skarm>
   );
 }
 
 const styles = StyleSheet.create({
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
-  innehall: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-    gap: 24,
-  },
-  rubrik: { fontSize: 26, fontWeight: "800" },
-  undertitel: { fontSize: 15, fontWeight: "600", marginTop: -12 },
-  faltblock: { gap: 12 },
-  sektionLabel: { fontSize: 15, fontWeight: "600" },
-  hundNamn: { fontSize: 17, fontWeight: "700" },
-  lista: { gap: 10 },
-  knappblock: { gap: 12, marginTop: 8 },
-  raderaBlock: { marginTop: 4, gap: 12 },
+  flex1: { flex: 1 },
+  undertitel: { marginTop: avstand.s1 },
+  toppKnappar: { flexDirection: "row", alignItems: "center", gap: avstand.s3 },
+  block: { gap: avstand.s2 },
+  tidblock: { gap: avstand.s3 },
+  skiljelinje: { height: 1 },
+  sidfot: { gap: avstand.s2 },
 });

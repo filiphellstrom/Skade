@@ -1,22 +1,19 @@
 import { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { hamtaJaktdag, settAktivHund } from "@/db/queries/jaktdag";
 import { hamtaHundarForProfil, laggTillHundIJaktdag } from "@/db/queries/hund";
 import { useProfil } from "@/contexts/ProfilContext";
 import type { Hund, Jaktdag, Uuid } from "@/db/types";
-import { BigButton } from "@/components/BigButton";
 import { SelectableCard } from "@/components/SelectableCard";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { InlineBanner } from "@/components/InlineBanner";
-import { useThemeColors } from "@/theme/colors";
+import { useFarger } from "@/theme/TemaContext";
+import { avstand } from "@/theme/tokens";
+import { Knapp } from "@/components/ui/Knapp";
+import { Kort } from "@/components/ui/Kort";
+import { Etikett, Felrad, Skarm } from "@/components/ui/Delar";
+import { Txt } from "@/components/ui/Txt";
 
 /**
  * Sida 2: Välj hund. Kopplar en eller flera hundar till jaktdagen
@@ -33,7 +30,7 @@ import { useThemeColors } from "@/theme/colors";
  * (kontrollerat att inget annat skärm återanvänder strängen).
  */
 export default function ValjHund() {
-  const colors = useThemeColors();
+  const f = useFarger();
   const { profil } = useProfil();
   const { jaktdagId } = useLocalSearchParams<{ jaktdagId: string }>();
 
@@ -118,39 +115,44 @@ export default function ValjHund() {
 
   if (!jaktdag || !hundar) {
     return (
-      <View
-        style={[
-          styles.laddar,
-          { backgroundColor: colors.background },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.laddar, { backgroundColor: f.surface100 }]}>
+        <ActivityIndicator size="large" color={f.brand} />
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={styles.innehall}
+    <Skarm
+      sidfot={
+        hundar.length > 0 ? (
+          <View style={styles.sidfot}>
+            <Felrad text={fel} />
+            <Knapp
+              titel={valdaLista.length > 1 && !aktivHundId ? "Välj vilken hund som driver" : "Bekräfta"}
+              onPress={bekrafta}
+              disabled={!kanBekrafta}
+              laddar={sparar}
+            />
+          </View>
+        ) : undefined
+      }
     >
       <ScreenHeader
         jaktmark={jaktdag.jaktmark}
         datum={new Date(jaktdag.datum * 1000)}
         visaTillbaka
+        titel="Välj hundar som ska jaga"
       />
 
-      <Text style={[styles.rubrik, { color: colors.text }]}>
-        Välj hundar som ska jaga
-      </Text>
-
       {hundar.length === 0 ? (
-        <View style={styles.tomtLista}>
-          <Text style={[styles.tomText, { color: colors.textMuted }]}>
+        <Kort>
+          <Txt variant="body" farg="inkMuted">
             Du har inga hundar registrerade än.
-          </Text>
-          <BigButton label="Lägg till hund" onPress={laggTillHundLank} />
-        </View>
+          </Txt>
+          <View style={styles.tomKnapp}>
+            <Knapp titel="Lägg till hund" ikon="plus" onPress={laggTillHundLank} />
+          </View>
+        </Kort>
       ) : (
         <>
           <View style={styles.lista}>
@@ -163,19 +165,12 @@ export default function ValjHund() {
                 onPress={() => vaxlaVal(hund.id)}
               />
             ))}
+            <Knapp titel="Lägg till hund" ikon="plus" variant="sekundar" onPress={laggTillHundLank} />
           </View>
 
-          <BigButton
-            label="+ Lägg till hund"
-            variant="secondary"
-            onPress={laggTillHundLank}
-          />
-
           {valdaLista.length > 1 && (
-            <View style={styles.aktivBlock}>
-              <Text style={[styles.delrubrik, { color: colors.text }]}>
-                Vilken hund driver just nu?
-              </Text>
+            <View>
+              <Etikett>VILKEN HUND DRIVER FÖRST?</Etikett>
               <View style={styles.lista}>
                 {hundar
                   .filter((h) => valda.has(h.id))
@@ -191,37 +186,15 @@ export default function ValjHund() {
               </View>
             </View>
           )}
-
-          {fel && <InlineBanner text={fel} typ="error" />}
-
-          <View style={styles.knappblock}>
-            <BigButton
-              label="Bekräfta"
-              onPress={bekrafta}
-              disabled={!kanBekrafta}
-              laddar={sparar}
-            />
-          </View>
         </>
       )}
-    </ScrollView>
+    </Skarm>
   );
 }
 
 const styles = StyleSheet.create({
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
-  innehall: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 40,
-    gap: 16,
-  },
-  rubrik: { fontSize: 24, fontWeight: "800", marginBottom: 4 },
-  delrubrik: { fontSize: 17, fontWeight: "700", marginBottom: 4 },
-  lista: { gap: 10 },
-  tomtLista: { gap: 16, paddingVertical: 24 },
-  tomText: { fontSize: 16, textAlign: "center" },
-  aktivBlock: { marginTop: 8, gap: 10 },
-  knappblock: { marginTop: 12 },
+  lista: { gap: avstand.s2 },
+  tomKnapp: { marginTop: avstand.s4 },
+  sidfot: { gap: avstand.s2 },
 });

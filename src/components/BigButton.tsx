@@ -31,7 +31,14 @@ export function BigButton({
   laddar = false,
   liten = false,
 }: BigButtonProps) {
-  const v: KnappVariant =
-    variant === "danger" ? (liten ? "faraLiten" : "fara") : variant === "secondary" ? "sekundar" : "primar";
+  // `liten` är alltid den lilla fara-knappen (Arkivera/Radera hund, Radera
+  // drev) oavsett variant - Design Systemet ritar alla tre likadant.
+  const v: KnappVariant = liten
+    ? "faraLiten"
+    : variant === "danger"
+      ? "fara"
+      : variant === "secondary"
+        ? "sekundar"
+        : "primar";
   return <Knapp titel={label} onPress={onPress} variant={v} disabled={disabled} laddar={laddar} />;
 }

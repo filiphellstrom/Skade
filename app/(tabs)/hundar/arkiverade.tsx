@@ -1,13 +1,15 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { hamtaArkiveradeHundar } from "@/db/queries/hund";
 import { useProfil } from "@/contexts/ProfilContext";
 import type { Hund } from "@/db/types";
-import { BackButton } from "@/components/BackButton";
-import { InfoRow } from "@/components/InfoRow";
-import { useThemeColors } from "@/theme/colors";
+import { useFarger } from "@/theme/TemaContext";
+import { avstand } from "@/theme/tokens";
+import { Kort, Listrad } from "@/components/ui/Kort";
+import { Skarm, TillbakaKnapp } from "@/components/ui/Delar";
+import { Txt } from "@/components/ui/Txt";
 
 /**
  * Lista över arkiverade hundar (arkiveraHund(), migration 0002) - länkad
@@ -23,7 +25,7 @@ import { useThemeColors } from "@/theme/colors";
  * som app/historik/index.tsx - satt för nära skärmkanten.
  */
 export default function ArkiveradeHundar() {
-  const colors = useThemeColors();
+  const f = useFarger();
   const { profil } = useProfil();
 
   const [hundar, setHundar] = useState<Hund[] | null>(null);
@@ -47,57 +49,39 @@ export default function ArkiveradeHundar() {
   );
 
   return (
-    <View style={[styles.flex, { backgroundColor: colors.background }]}>
-      <View style={styles.backRad}>
-        <BackButton />
+    <Skarm>
+      <View style={styles.topp}>
+        <TillbakaKnapp />
+        <Txt variant="title1" accessibilityRole="header">
+          Arkiverade hundar
+        </Txt>
       </View>
 
       {hundar === null ? (
-        <View style={styles.laddar}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ActivityIndicator size="large" color={f.brand} />
+      ) : hundar.length === 0 ? (
+        <Kort>
+          <Txt variant="body" farg="inkMuted">
+            Inga arkiverade hundar just nu.
+          </Txt>
+        </Kort>
       ) : (
-        <ScrollView contentContainerStyle={styles.innehall}>
-          <Text style={[styles.rubrik, { color: colors.text }]}>
-            Arkiverade hundar
-          </Text>
-
-          {hundar.length === 0 ? (
-            <Text style={[styles.tomText, { color: colors.textMuted }]}>
-              Inga arkiverade hundar just nu.
-            </Text>
-          ) : (
-            <View style={styles.lista}>
-              {hundar.map((h) => (
-                <InfoRow
-                  key={h.id}
-                  titel={h.namn}
-                  undertitel={h.ras ?? undefined}
-                  onPress={() => router.push(`/hundar/${h.id}`)}
-                />
-              ))}
-            </View>
-          )}
-        </ScrollView>
+        <Kort lista>
+          {hundar.map((h, i) => (
+            <Listrad
+              key={h.id}
+              forsta={i === 0}
+              titel={h.namn}
+              undertitel={h.ras ?? undefined}
+              onPress={() => router.push(`/hundar/${h.id}`)}
+            />
+          ))}
+        </Kort>
       )}
-    </View>
+    </Skarm>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  backRad: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
-  innehall: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 40,
-    gap: 20,
-  },
-  rubrik: { fontSize: 28, fontWeight: "800", marginBottom: 4 },
-  tomText: { fontSize: 16, textAlign: "center", marginTop: 24 },
-  lista: { gap: 10 },
+  topp: { gap: avstand.s4 },
 });

@@ -1,4 +1,5 @@
 import { StyleSheet, View } from "react-native";
+import { Txt } from "@/components/ui/Txt";
 import { Stegare } from "@/components/Stegare";
 import type { UnixTimestamp } from "@/db/types";
 
@@ -41,23 +42,29 @@ export function TidField({ label, value, onChange }: TidFieldProps) {
   };
 
   return (
-    <View style={styles.rad}>
-      <Stegare
-        label={`${label} - timme`}
-        varde={String(timme).padStart(2, "0")}
-        onMinus={() => andraTimme(-1)}
-        onPlus={() => andraTimme(1)}
-      />
-      <Stegare
-        label={`${label} - minut`}
-        varde={String(minut).padStart(2, "0")}
-        onMinus={() => andraMinut(-1)}
-        onPlus={() => andraMinut(1)}
-      />
+    <View style={styles.block}>
+      <Txt variant="heading">{label}</Txt>
+      <View style={styles.rad}>
+        <Stegare
+          label="Timme"
+          a11yPrefix={label}
+          varde={String(timme).padStart(2, "0")}
+          onMinus={() => andraTimme(-1)}
+          onPlus={() => andraTimme(1)}
+        />
+        <Stegare
+          label="Minut"
+          a11yPrefix={label}
+          varde={String(minut).padStart(2, "0")}
+          onMinus={() => andraMinut(-1)}
+          onPlus={() => andraMinut(1)}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  block: { gap: 8 },
   rad: { flexDirection: "row", gap: 8 },
 });

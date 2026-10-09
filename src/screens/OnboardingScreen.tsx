@@ -1,19 +1,14 @@
 import { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { getDatabase } from "@/db/client";
 import { hamtaEllerSkapaProfil, uppdateraProfilNamn } from "@/db/queries/profil";
 import { skapaHund } from "@/db/queries/hund";
 import type { Profil } from "@/db/types";
-import { BigButton } from "@/components/BigButton";
 import { InlineBanner } from "@/components/InlineBanner";
-import { useThemeColors } from "@/theme/colors";
+import { avstand } from "@/theme/tokens";
+import { Knapp } from "@/components/ui/Knapp";
+import { Falt, Skarm } from "@/components/ui/Delar";
+import { Txt } from "@/components/ui/Txt";
 
 interface OnboardingScreenProps {
   profil: Profil;
@@ -41,7 +36,6 @@ interface OnboardingScreenProps {
  * funktionella introtexten ovanför och instruktionsraden nedanför.
  */
 export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
-  const colors = useThemeColors();
   const [namn, setNamn] = useState("");
   const [hundNamn, setHundNamn] = useState("");
   const [sparar, setSparar] = useState(false);
@@ -73,108 +67,52 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: colors.background }]}
+      style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.innehall}>
+      <Skarm>
         <View style={styles.rubrikblock}>
-          <Text style={[styles.rubrik, { color: colors.text }]}>
-            Välkommen till Skade
-          </Text>
-          <Text style={[styles.intro, { color: colors.textMuted }]}>
-            Skade är din digitala jaktdagbok - ta tiden på varje drev, se
-            vilket vilt som drevs, och håll koll på dina hundars insatser
-            över tid.
-          </Text>
-          <Text style={[styles.namnfakta, { color: colors.textMuted }]}>
-            Appen är uppkallad efter Skade, jaktens gudinna i nordisk
-            mytologi.
-          </Text>
-          <Text style={[styles.ingress, { color: colors.textMuted }]}>
-            Innan du kör igång behöver vi ditt namn och namnet på din första
-            hund.
-          </Text>
+          <Txt variant="display" accessibilityRole="header">
+            Skade
+          </Txt>
+          <Txt variant="body" farg="inkMuted">
+            Skade är din digitala jaktdagbok - ta tiden på varje drev, se vilket vilt som drevs, och
+            håll koll på dina hundars insatser över tid.
+          </Txt>
+          <Txt variant="caption" farg="inkMuted">
+            Appen är uppkallad efter Skade, jaktens gudinna i nordisk mytologi.
+          </Txt>
         </View>
 
-        <View style={styles.falt}>
-          <Text style={[styles.etikett, { color: colors.text }]}>
-            Ditt namn
-          </Text>
-          <TextInput
-            value={namn}
-            onChangeText={setNamn}
-            placeholder="T.ex. Filip"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="words"
-            autoFocus
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-              },
-            ]}
-          />
-        </View>
+        <Txt variant="bodyStrong">
+          Innan du kör igång behöver vi ditt namn och namnet på din första hund.
+        </Txt>
 
-        <View style={styles.falt}>
-          <Text style={[styles.etikett, { color: colors.text }]}>
-            Din hunds namn
-          </Text>
-          <TextInput
-            value={hundNamn}
-            onChangeText={setHundNamn}
-            placeholder="T.ex. Aston"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="words"
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-              },
-            ]}
-          />
-        </View>
+        <Falt
+          etikett="Ditt namn"
+          value={namn}
+          onChangeText={setNamn}
+          placeholder="T.ex. Filip"
+          autoCapitalize="words"
+          autoFocus
+        />
+        <Falt
+          etikett="Din hunds namn"
+          value={hundNamn}
+          onChangeText={setHundNamn}
+          placeholder="T.ex. Aston"
+          autoCapitalize="words"
+        />
 
         {fel && <InlineBanner text={fel} typ="error" />}
 
-        <View style={styles.knappblock}>
-          <BigButton
-            label="Kom igång"
-            onPress={komIgang}
-            disabled={!kanSpara}
-            laddar={sparar}
-          />
-        </View>
-      </View>
+        <Knapp titel="Kom igång" onPress={komIgang} disabled={!kanSpara} laddar={sparar} />
+      </Skarm>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  innehall: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    gap: 20,
-  },
-  rubrikblock: { gap: 8, marginBottom: 12 },
-  rubrik: { fontSize: 28, fontWeight: "800" },
-  intro: { fontSize: 16, lineHeight: 22 },
-  namnfakta: { fontSize: 13, lineHeight: 18, fontStyle: "italic" },
-  ingress: { fontSize: 16, lineHeight: 22, fontWeight: "600" },
-  falt: { gap: 8 },
-  etikett: { fontSize: 15, fontWeight: "600" },
-  input: {
-    borderWidth: 2,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 18,
-  },
-  knappblock: { marginTop: 12 },
+  rubrikblock: { gap: avstand.s2 },
 });
