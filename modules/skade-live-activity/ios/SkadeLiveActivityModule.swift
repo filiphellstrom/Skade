@@ -121,6 +121,17 @@ enum SkadeActivities {
     return "startad"
   }
 
+  /// För applicationWillTerminate: processen avslutas när anropet
+  /// returnerar, så vänta (högst 2 s) tills korten är borta.
+  static func avslutaAllaInnanAvslut() {
+    let klar = DispatchSemaphore(value: 0)
+    Task.detached {
+      await avslutaAlla()
+      klar.signal()
+    }
+    _ = klar.wait(timeout: .now() + 2)
+  }
+
   static func avslutaAlla() async {
     for activity in Activity<SkadeJaktdagAttributes>.activities {
       await activity.end(nil, dismissalPolicy: .immediate)

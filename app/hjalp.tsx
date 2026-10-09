@@ -86,7 +86,7 @@ const JAKTDAGEN: Amne[] = [
     stycken: [
       "När jaktdagen har en vald hund visas ett kort på låsskärmen och i Dynamic Island. Det visar hunden, jaktmarken och tiden för pågående drev.",
       "Du kan starta och stoppa drev direkt på låsskärmen, utan att låsa upp. Ett drev som stoppas där sparas utan viltart och utfall. I Historik får det markeringen Saknar viltart och utfall, så att du ser vad som behöver kompletteras.",
-      "Byte av hund görs i appen. Kortet försvinner när du avslutar jaktdagen.",
+      "Byte av hund görs i appen. Kortet försvinner när du avslutar jaktdagen eller stänger appen helt genom att svepa bort den. Öppnar du appen igen under en pågående jaktdag kommer kortet tillbaka.",
       "iOS tillåter att kortet uppdateras i högst åtta timmar. Öppna appen någon gång under en lång jaktdag, så startas ett nytt kort.",
       "Syns inget kort kan Live Activities vara avstängt för Skade. Det slås på i telefonens Inställningar under Skade.",
     ],
