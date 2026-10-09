@@ -67,7 +67,8 @@ const JAKTDAGEN: Amne[] = [
   {
     titel: "Efter ett drev: viltart och utfall",
     stycken: [
-      "När du stoppar ett drev kan du ange viltart och utfall direkt, och justera start- och sluttid om du tryckte lite sent. Tryck Spara.",
+      "När du stoppar ett drev kan du ange viltart och utfall direkt. Tryck på ett valt alternativ igen för att ta bort valet.",
+      "Under Tid kan du justera start- och sluttid om du tryckte lite sent. Tryck på Start eller Slut och rulla hjulen för timme och minut, och tryck Klar. Tryck sedan Spara.",
       "Har du inte tid trycker du Hoppa över. Drevet är redan sparat, och du kan fylla i resten senare från Historik.",
       "Radera drev tar bort drevet helt, efter en bekräftelse. Knappen är medvetet liten så att man inte trycker på den av misstag.",
     ],

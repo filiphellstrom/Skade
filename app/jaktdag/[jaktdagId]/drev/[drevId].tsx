@@ -8,12 +8,11 @@ import type { DrevMedHundnamn, Hund } from "@/db/types";
 import { ChipSelect } from "@/components/ChipSelect";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SelectableCard } from "@/components/SelectableCard";
-import { TidField } from "@/components/TidField";
+import { TidVal } from "@/components/TidVal";
 import { formateraTid } from "@/hooks/useElapsedTime";
 import { useFarger } from "@/theme/TemaContext";
 import { avstand } from "@/theme/tokens";
 import { Knapp } from "@/components/ui/Knapp";
-import { Kort } from "@/components/ui/Kort";
 import { Etikett, Felrad, Skarm } from "@/components/ui/Delar";
 import { Txt } from "@/components/ui/Txt";
 
@@ -38,7 +37,8 @@ const UTFALL = ["Fälld", "Missad", "Ingen kontakt"];
  * frågan om hund-/tidsredigering): utökad med en Hund-sektion (bara
  * redigerbar, som en radiolista, om jaktdagen har fler än en hund kopplad
  * - annars bara hundens namn som text) och en Tid-sektion (Start-/Slut-
- * klockslag via TidField, med en live omräknad duration). Spara-knappen
+ * klockslag, med en live omräknad duration; sedan 2026-10-09 via TidVal
+ * med rullhjul i ett ark). Spara-knappen
  * är avstängd om vald sluttid inte längre är efter starttiden.
  *
  * Båda entry-lägena delar samma Spara-logik (uppdateraDrev, lokalt state
@@ -244,13 +244,12 @@ export default function RedigeraDrev() {
       <ChipSelect label="Utfall" options={UTFALL} value={outcome} onChange={setOutcome} />
       <View>
         <Etikett>TID</Etikett>
-        <Kort>
-          <View style={styles.tidblock}>
-            <TidField label="Start" value={startTimestamp} onChange={setStartTimestamp} />
-            <View style={[styles.skiljelinje, { backgroundColor: f.border }]} />
-            <TidField label="Slut" value={endTimestamp} onChange={setEndTimestamp} />
-          </View>
-        </Kort>
+        <TidVal
+          start={startTimestamp}
+          slut={endTimestamp}
+          onStart={setStartTimestamp}
+          onSlut={setEndTimestamp}
+        />
       </View>
     </Skarm>
   );
@@ -262,7 +261,5 @@ const styles = StyleSheet.create({
   undertitel: { marginTop: avstand.s1 },
   toppKnappar: { flexDirection: "row", alignItems: "center", gap: avstand.s3 },
   block: { gap: avstand.s2 },
-  tidblock: { gap: avstand.s3 },
-  skiljelinje: { height: 1 },
   sidfot: { gap: avstand.s2 },
 });
