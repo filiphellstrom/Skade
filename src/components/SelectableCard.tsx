@@ -1,22 +1,24 @@
+import { Pressable, StyleSheet, View } from "react-native";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useThemeColors } from "@/theme/colors";
+import { useFarger } from "@/theme/TemaContext";
+import { avstand, radie, tryck } from "@/theme/tokens";
+import { Ikon } from "@/components/ui/Ikon";
+import { Txt } from "@/components/ui/Txt";
 
 interface SelectableCardProps {
   titel: string;
   undertitel?: string;
   vald: boolean;
   onPress: () => void;
-  /** "checkbox" för flerval (Välj hund), "radio" för enval (t.ex. vilken hund är aktiv). */
+  /** "checkbox" för flerval (Välj hundar), "radio" för enval (aktiv hund). */
   typ?: "checkbox" | "radio";
   hoger?: ReactNode;
 }
 
 /**
- * Stort tryckbart kort där HELA ytan är tryckyta, inte bara en liten
- * kryssruta - UX-principerna kräver att det går att träffa säkert med
- * handskar. Används för hundlistan i "Välj hund" och för
- * aktiv-hund-valet på timer-skärmen.
+ * Val-kort enligt Design Systemet: minst tap-min högt, hela ytan är
+ * tryckyta. Ej vald: surface200 med border-strong-kant. Vald: brandSoft
+ * med brand-kant, en bock och ordet "Vald" - aldrig bara färg.
  */
 export function SelectableCard({
   titel,
@@ -26,85 +28,55 @@ export function SelectableCard({
   typ = "checkbox",
   hoger,
 }: SelectableCardProps) {
-  const colors = useThemeColors();
-
+  const f = useFarger();
   return (
     <Pressable
       accessibilityRole={typ === "radio" ? "radio" : "checkbox"}
       accessibilityState={{ checked: vald }}
+      accessibilityLabel={[titel, undertitel].filter(Boolean).join(", ")}
       onPress={onPress}
-      style={[
+      style={({ pressed }) => [
         styles.kort,
         {
-          backgroundColor: vald ? colors.surfaceSelected : colors.surface,
-          borderColor: vald ? colors.borderSelected : colors.border,
+          backgroundColor: vald ? f.brandSoft : f.surface200,
+          borderColor: vald ? f.brand : f.borderStrong,
+          opacity: pressed ? 0.85 : 1,
         },
       ]}
     >
-      <View
-        style={[
-          styles.markor,
-          typ === "radio" && styles.markorRund,
-          {
-            borderColor: vald ? colors.borderSelected : colors.border,
-            backgroundColor: vald ? colors.borderSelected : "transparent",
-          },
-        ]}
-      >
-        {vald && <View style={typ === "radio" ? styles.radioPrick : undefined} />}
-      </View>
-
       <View style={styles.textkolumn}>
-        <Text style={[styles.titel, { color: colors.text }]}>{titel}</Text>
-        {undertitel ? (
-          <Text style={[styles.undertitel, { color: colors.textMuted }]}>
+        <Txt variant="heading">{titel}</Txt>
+        {!!undertitel && (
+          <Txt variant="caption" farg="inkMuted">
             {undertitel}
-          </Text>
-        ) : null}
+          </Txt>
+        )}
       </View>
-
       {hoger}
+      {vald && (
+        <View style={styles.vald}>
+          <Ikon namn="bock" farg={f.brand} storlek={20} linje={2.25} />
+          <Txt variant="caption" farg="brand" style={styles.valdText}>
+            Vald
+          </Txt>
+        </View>
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   kort: {
+    minHeight: tryck.min,
     flexDirection: "row",
     alignItems: "center",
+    gap: avstand.s3,
+    paddingHorizontal: avstand.s4,
+    paddingVertical: avstand.s2,
+    borderRadius: radie.md,
     borderWidth: 2,
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    minHeight: 72,
   },
-  markor: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14,
-  },
-  markorRund: {
-    borderRadius: 14,
-  },
-  radioPrick: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#FFFFFF",
-  },
-  textkolumn: {
-    flex: 1,
-  },
-  titel: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  undertitel: {
-    fontSize: 14,
-    marginTop: 2,
-  },
+  textkolumn: { flex: 1, gap: 2 },
+  vald: { flexDirection: "row", alignItems: "center", gap: avstand.s1 },
+  valdText: { fontWeight: "600" },
 });

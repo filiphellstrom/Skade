@@ -1,5 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useThemeColors } from "@/theme/colors";
+import { StyleSheet, View } from "react-native";
+import { Knapp } from "@/components/ui/Knapp";
 import { Stegare } from "@/components/Stegare";
 import type { UnixTimestamp } from "@/db/types";
 
@@ -43,19 +43,14 @@ function standardStartdatum(): UnixTimestamp {
  * samma mönster utan null-läget, använt i periodfiltret.
  */
 export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
-  const colors = useThemeColors();
 
   if (value === null) {
     return (
-      <Pressable
-        accessibilityRole="button"
+      <Knapp
+        variant="sekundar"
+        titel="Ange födelsedatum"
         onPress={() => onChange(standardStartdatum())}
-        style={[styles.angeKnapp, { borderColor: colors.border, backgroundColor: colors.surface }]}
-      >
-        <Text style={[styles.angeText, { color: colors.text }]}>
-          Ange födelsedatum
-        </Text>
-      </Pressable>
+      />
     );
   }
 
@@ -97,25 +92,12 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
         <Stegare label="Månad" varde={MANADSNAMN[manadIndex]} onMinus={() => andraManad(-1)} onPlus={() => andraManad(1)} />
         <Stegare label="År" varde={String(ar)} onMinus={() => andraAr(-1)} onPlus={() => andraAr(1)} />
       </View>
-      <Pressable accessibilityRole="button" onPress={() => onChange(null)} style={styles.taBortKnapp}>
-        <Text style={[styles.taBortText, { color: colors.textMuted }]}>
-          Ta bort födelsedatum
-        </Text>
-      </Pressable>
+      <Knapp variant="text" titel="Ta bort födelsedatum" onPress={() => onChange(null)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  angeKnapp: {
-    borderWidth: 2,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  angeText: { fontSize: 16, fontWeight: "600" },
   block: { gap: 8 },
   rad: { flexDirection: "row", gap: 8 },
-  taBortKnapp: { alignSelf: "center", paddingVertical: 8 },
-  taBortText: { fontSize: 14, fontWeight: "600", textDecorationLine: "underline" },
 });

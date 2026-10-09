@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { useThemeColors } from "@/theme/colors";
+import { StyleSheet, View } from "react-native";
+import { Etikett, Falt, ValChip } from "@/components/ui/Delar";
+import { avstand } from "@/theme/tokens";
 
 interface ChipSelectProps {
   label: string;
@@ -21,102 +22,43 @@ interface ChipSelectProps {
  * "Annat datum" i Sprint 1.
  */
 export function ChipSelect({ label, options, value, onChange }: ChipSelectProps) {
-  const colors = useThemeColors();
   const arFordefinierad = options.includes(value);
 
   const [visaAnnat, setVisaAnnat] = useState(value !== "" && !arFordefinierad);
-  const [anpassadText, setAnpassadText] = useState(
-    arFordefinierad ? "" : value,
-  );
+  const [anpassadText, setAnpassadText] = useState(arFordefinierad ? "" : value);
 
   const valjChip = (option: string) => {
     setVisaAnnat(false);
     onChange(option);
   };
 
-  const valjAnnat = () => {
-    setVisaAnnat(true);
-  };
-
   return (
-    <View style={styles.block}>
-      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
-
+    <View>
+      <Etikett>{label.toUpperCase()}</Etikett>
       <View style={styles.rad}>
-        {options.map((option) => {
-          const vald = value === option;
-          return (
-            <Pressable
-              key={option}
-              accessibilityRole="button"
-              onPress={() => valjChip(option)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: vald ? colors.surfaceSelected : colors.surface,
-                  borderColor: vald ? colors.borderSelected : colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.chipText, { color: colors.text }]}>
-                {option}
-              </Text>
-            </Pressable>
-          );
-        })}
-        <Pressable
-          accessibilityRole="button"
-          onPress={valjAnnat}
-          style={[
-            styles.chip,
-            {
-              backgroundColor: visaAnnat ? colors.surfaceSelected : colors.surface,
-              borderColor: visaAnnat ? colors.borderSelected : colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.chipText, { color: colors.text }]}>Annat</Text>
-        </Pressable>
+        {options.map((option) => (
+          <ValChip key={option} titel={option} vald={value === option} onPress={() => valjChip(option)} />
+        ))}
+        <ValChip titel="Annat" vald={visaAnnat} onPress={() => setVisaAnnat(true)} />
       </View>
 
       {visaAnnat && (
-        <TextInput
-          value={anpassadText}
-          onChangeText={setAnpassadText}
-          onBlur={() => onChange(anpassadText)}
-          placeholder="Skriv eget..."
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="sentences"
-          style={[
-            styles.input,
-            {
-              color: colors.text,
-              borderColor: colors.border,
-              backgroundColor: colors.surface,
-            },
-          ]}
-        />
+        <View style={styles.annat}>
+          <Falt
+            value={anpassadText}
+            onChangeText={setAnpassadText}
+            onBlur={() => onChange(anpassadText)}
+            placeholder="Skriv eget"
+            autoCapitalize="sentences"
+            accessibilityLabel={`${label}, eget värde`}
+          />
+        </View>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  block: { gap: 10 },
-  label: { fontSize: 15, fontWeight: "600" },
-  rad: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 2,
-  },
-  chipText: { fontSize: 15, fontWeight: "600" },
-  input: {
-    borderWidth: 2,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-  },
+  rad: { flexDirection: "row", flexWrap: "wrap", gap: avstand.s2 },
+  annat: { marginTop: avstand.s3 },
 });

@@ -1,52 +1,27 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Txt } from "@/components/ui/Txt";
 import { formateraTid } from "@/hooks/useElapsedTime";
-import { useThemeColors } from "@/theme/colors";
+import { avstand } from "@/theme/tokens";
 
 interface TimerDisplayProps {
   sekunder: number;
   pagar: boolean;
 }
 
-/**
- * Stor monospace-siffervisning för drevtid - läsbar i dåligt ljus/på
- * avstånd, per UX-principerna. `pagar` styr bara accentfärgen (grön =
- * drev igång), inte själva tickandet - det sköts av useElapsedTime.
- */
+/** Drevtiden i timer-numeral med tabulära siffror. */
 export function TimerDisplay({ sekunder, pagar }: TimerDisplayProps) {
-  const colors = useThemeColors();
-
   return (
-    <View style={styles.container}>
-      <Text
-        style={[
-          styles.siffror,
-          { color: pagar ? colors.primary : colors.text },
-        ]}
-      >
+    <View style={styles.container} accessibilityRole="timer">
+      <Txt variant="timerNumeral" farg={pagar ? "ink" : "inkMuted"} adjustsFontSizeToFit numberOfLines={1}>
         {formateraTid(sekunder)}
-      </Text>
-      <Text style={[styles.status, { color: colors.textMuted }]}>
-        {pagar ? "Drev pågår" : "Inget drev pågår"}
-      </Text>
+      </Txt>
+      <Txt variant="caption" farg="inkMuted">
+        {pagar ? "Drevet pågår" : "Redo att starta"}
+      </Txt>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 32,
-  },
-  siffror: {
-    fontSize: 72,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-    letterSpacing: 1,
-  },
-  status: {
-    marginTop: 8,
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  container: { alignItems: "center", gap: avstand.s4 },
 });

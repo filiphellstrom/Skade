@@ -1,5 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useThemeColors } from "@/theme/colors";
+import { StyleSheet, View } from "react-native";
+import { ValChip } from "@/components/ui/Delar";
+import { Txt } from "@/components/ui/Txt";
+import { avstand } from "@/theme/tokens";
 import { Stegare } from "@/components/Stegare";
 import { DatumField } from "@/components/DatumField";
 import type { HistorikPeriod } from "@/utils/period";
@@ -30,8 +32,6 @@ function standardIntervallSlut(): number {
  * delat mellan skärmarna) - se motivering i respektive skärms kommentar.
  */
 export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
-  const colors = useThemeColors();
-
   const valjTyp = (typ: HistorikPeriod["typ"]) => {
     if (typ === "allt") {
       onChange({ typ: "allt" });
@@ -70,14 +70,14 @@ export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
       {value.typ === "intervall" && (
         <View style={styles.intervallBlock}>
           <View style={styles.datumFalt}>
-            <Text style={[styles.datumEtikett, { color: colors.text }]}>Från</Text>
+            <Txt variant="caption" farg="inkMuted">Från</Txt>
             <DatumField
               value={value.start}
               onChange={(start) => onChange({ typ: "intervall", start, slut: value.slut })}
             />
           </View>
           <View style={styles.datumFalt}>
-            <Text style={[styles.datumEtikett, { color: colors.text }]}>Till</Text>
+            <Txt variant="caption" farg="inkMuted">Till</Txt>
             <DatumField
               value={value.slut}
               onChange={(slut) => onChange({ typ: "intervall", start: value.start, slut })}
@@ -89,45 +89,17 @@ export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
   );
 }
 
-function TypChip({
-  label,
-  vald,
-  onPress,
-}: {
-  label: string;
-  vald: boolean;
-  onPress: () => void;
-}) {
-  const colors = useThemeColors();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={[
-        styles.chip,
-        {
-          backgroundColor: vald ? colors.surfaceSelected : colors.surface,
-          borderColor: vald ? colors.borderSelected : colors.border,
-        },
-      ]}
-    >
-      <Text style={[styles.chipText, { color: colors.text }]}>{label}</Text>
-    </Pressable>
-  );
+/**
+ * Periodchip: 44 px högt enligt designens Historik/Statistik - lägre än
+ * tap-min, flaggat i sprint-6-designlyft.md.
+ */
+function TypChip({ label, vald, onPress }: { label: string; vald: boolean; onPress: () => void }) {
+  return <ValChip titel={label} vald={vald} onPress={onPress} hojd={44} />;
 }
 
 const styles = StyleSheet.create({
-  block: { gap: 10 },
-  chipRad: { flexDirection: "row", gap: 8 },
-  chip: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 2,
-    alignItems: "center",
-  },
-  chipText: { fontSize: 14, fontWeight: "600" },
-  intervallBlock: { gap: 10 },
-  datumFalt: { gap: 6 },
-  datumEtikett: { fontSize: 14, fontWeight: "600" },
+  block: { gap: avstand.s3 },
+  chipRad: { flexDirection: "row", flexWrap: "wrap", gap: avstand.s2 },
+  intervallBlock: { gap: avstand.s3 },
+  datumFalt: { gap: avstand.s1 },
 });

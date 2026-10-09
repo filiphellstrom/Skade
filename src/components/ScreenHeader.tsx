@@ -1,57 +1,45 @@
-import { StyleSheet, Text, View } from "react-native";
-import { useThemeColors } from "@/theme/colors";
-import { BackButton } from "@/components/BackButton";
+import { StyleSheet, View } from "react-native";
+import { TillbakaKnapp } from "@/components/ui/Delar";
+import { Txt } from "@/components/ui/Txt";
+import { avstand } from "@/theme/tokens";
 
 interface ScreenHeaderProps {
   jaktmark: string;
   datum: Date;
-  /**
-   * Visar en stor tillbaka-knapp ovanför jaktmark/datum. Använder
-   * BackButtons eget standardbeteende (ett steg bakåt, eller till
-   * huvudskärmen om det inte går) - skicka bara true/false, ingen egen
-   * navigeringslogik behöver upprepas vid varje anropsställe.
-   */
+  /** Visar en stor Tillbaka-knapp ovanför jaktmarken. */
   visaTillbaka?: boolean;
+  /** Valfri rubrik under kontextraden (t.ex. "Välj hundar som ska jaga"). */
+  titel?: string;
 }
 
 /**
- * Liten kontextrad överst på "Välj hund" och "Timer" - man ska alltid se
- * vilken jaktdag man är i, utan att det tar fokus från huvudknappen
- * längre ner på skärmen.
+ * Kontextrad överst i jaktdagsflödet - man ska alltid se vilken jaktmark
+ * och dag man jobbar med. Jaktmarken i title2, datumet i caption.
  */
-export function ScreenHeader({ jaktmark, datum, visaTillbaka }: ScreenHeaderProps) {
-  const colors = useThemeColors();
-
+export function ScreenHeader({ jaktmark, datum, visaTillbaka, titel }: ScreenHeaderProps) {
   return (
-    <View style={[styles.container, { borderColor: colors.border }]}>
-      {visaTillbaka && <BackButton />}
-      <Text style={[styles.jaktmark, { color: colors.text }]} numberOfLines={1}>
-        {jaktmark}
-      </Text>
-      <Text style={[styles.datum, { color: colors.textMuted }]}>
-        {datum.toLocaleDateString("sv-SE", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        })}
-      </Text>
+    <View style={styles.container}>
+      {visaTillbaka && <TillbakaKnapp />}
+      <View>
+        <Txt variant="label" farg="inkMuted">
+          {datum
+            .toLocaleDateString("sv-SE", { weekday: "long", day: "numeric", month: "long" })
+            .toUpperCase()}
+        </Txt>
+        <Txt variant="title2" style={styles.mark}>
+          {jaktmark}
+        </Txt>
+      </View>
+      {!!titel && (
+        <Txt variant="title1" accessibilityRole="header">
+          {titel}
+        </Txt>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderBottomWidth: 1,
-    paddingBottom: 12,
-    marginBottom: 20,
-  },
-  jaktmark: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  datum: {
-    fontSize: 14,
-    marginTop: 2,
-    textTransform: "capitalize",
-  },
+  container: { gap: avstand.s4 },
+  mark: { marginTop: avstand.s1 },
 });

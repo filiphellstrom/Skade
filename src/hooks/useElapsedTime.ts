@@ -51,7 +51,8 @@ export function formateraTid(totalSekunder: number): string {
   const ss = String(sekunder).padStart(2, "0");
 
   if (timmar > 0) {
-    return `${timmar}:${mm}:${ss}`;
+    // hh:mm:ss först över en timme (Design Systemet: timer-numeral).
+    return `${String(timmar).padStart(2, "0")}:${mm}:${ss}`;
   }
   return `${mm}:${ss}`;
 }

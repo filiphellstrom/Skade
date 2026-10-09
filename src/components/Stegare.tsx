@@ -1,5 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useThemeColors } from "@/theme/colors";
+import { Pressable, StyleSheet, View } from "react-native";
+import { useFarger } from "@/theme/TemaContext";
+import { avstand, radie } from "@/theme/tokens";
+import { Ikon } from "@/components/ui/Ikon";
+import { Txt } from "@/components/ui/Txt";
 
 interface StegareProps {
   label: string;
@@ -9,34 +12,39 @@ interface StegareProps {
 }
 
 /**
- * Delad ‹ värde › -stegare - bruten ut ur BirthDateField (Sprint 3, för
- * födelsedatum) när samma mönster behövdes igen för periodfiltrets
- * år-/datumval (DatumField.tsx, PeriodFilter.tsx). Ingen egen state -
- * bara en tryckbar rad, föräldern äger värdet och bestämmer vad
- * onMinus/onPlus faktiskt ska ändra.
+ * Stegare med etikett ovanför och ‹ värde › under, enligt drev-vyn i
+ * designen. Knapparna är 48 px (designen ritar 44 px; vardagslägets
+ * tap-min är 56 px men tre stegare måste få plats bredvid varandra på
+ * 390 px - flaggat i sprint-6-designlyft.md).
  */
 export function Stegare({ label, varde, onMinus, onPlus }: StegareProps) {
-  const colors = useThemeColors();
+  const f = useFarger();
   return (
-    <View style={[styles.block, { borderColor: colors.border }]}>
-      <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
+    <View style={styles.block}>
+      <Txt variant="caption" farg="inkMuted">
+        {label}
+      </Txt>
       <View style={styles.rad}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={`${label}, minska`}
           onPress={onMinus}
-          style={styles.knapp}
-          hitSlop={8}
+          hitSlop={4}
+          style={({ pressed }) => [styles.knapp, { backgroundColor: f.surface300, opacity: pressed ? 0.8 : 1 }]}
         >
-          <Text style={[styles.pil, { color: colors.text }]}>‹</Text>
+          <Ikon namn="tillbaka" farg={f.ink} storlek={22} />
         </Pressable>
-        <Text style={[styles.varde, { color: colors.text }]}>{varde}</Text>
+        <Txt variant="title2" style={styles.varde}>
+          {varde}
+        </Txt>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={`${label}, öka`}
           onPress={onPlus}
-          style={styles.knapp}
-          hitSlop={8}
+          hitSlop={4}
+          style={({ pressed }) => [styles.knapp, { backgroundColor: f.surface300, opacity: pressed ? 0.8 : 1 }]}
         >
-          <Text style={[styles.pil, { color: colors.text }]}>›</Text>
+          <Ikon namn="framat" farg={f.ink} storlek={22} />
         </Pressable>
       </View>
     </View>
@@ -44,17 +52,14 @@ export function Stegare({ label, varde, onMinus, onPlus }: StegareProps) {
 }
 
 const styles = StyleSheet.create({
-  block: {
-    flex: 1,
-    borderWidth: 2,
-    borderRadius: 14,
-    paddingVertical: 8,
+  block: { flex: 1, gap: avstand.s1, alignItems: "center" },
+  rad: { flexDirection: "row", alignItems: "center", gap: avstand.s1 },
+  knapp: {
+    width: 48,
+    height: 48,
+    borderRadius: radie.md,
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
   },
-  label: { fontSize: 12, fontWeight: "600" },
-  rad: { flexDirection: "row", alignItems: "center" },
-  knapp: { paddingHorizontal: 10, paddingVertical: 8 },
-  pil: { fontSize: 22, fontWeight: "700" },
-  varde: { fontSize: 16, fontWeight: "700", minWidth: 36, textAlign: "center" },
+  varde: { minWidth: 40, textAlign: "center", fontVariant: ["tabular-nums"] },
 });

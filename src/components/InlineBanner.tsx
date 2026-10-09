@@ -1,5 +1,8 @@
-import { StyleSheet, Text, View } from "react-native";
-import { useThemeColors } from "@/theme/colors";
+import { StyleSheet, View } from "react-native";
+import { useFarger } from "@/theme/TemaContext";
+import { avstand, radie } from "@/theme/tokens";
+import { Ikon } from "@/components/ui/Ikon";
+import { Txt } from "@/components/ui/Txt";
 
 interface InlineBannerProps {
   text: string;
@@ -7,32 +10,34 @@ interface InlineBannerProps {
 }
 
 /**
- * Liten textrad för fel/status inline i skärmen - t.ex. "ett drev pågår
- * redan" eller "stoppa pågående drev för att avsluta jaktdagen".
- * Medvetet INTE en Alert.alert-modal: modaler kräver precisa tryck och
- * avbryter flödet, vilket går emot "snabbt att starta/stoppa" och
- * "fungerar med handskar" i UX-principerna.
+ * Fel: signal-text på surface200 (Design Systemet: "Felmeddelanden säger
+ * vad som hände och vad man gör härnäst, i signal-text").
+ * Info: ink på brandSoft. Alltid ikon + text.
  */
 export function InlineBanner({ text, typ = "error" }: InlineBannerProps) {
-  const colors = useThemeColors();
-  const bakgrund = typ === "error" ? colors.bannerErrorBg : colors.bannerInfoBg;
-  const textfarg = typ === "error" ? colors.bannerErrorText : colors.bannerInfoText;
-
+  const f = useFarger();
+  const fel = typ === "error";
   return (
-    <View style={[styles.banner, { backgroundColor: bakgrund }]}>
-      <Text style={[styles.text, { color: textfarg }]}>{text}</Text>
+    <View
+      accessibilityLiveRegion="polite"
+      style={[styles.banner, { backgroundColor: fel ? f.surface200 : f.brandSoft, borderColor: fel ? f.signal : "transparent" }]}
+    >
+      <Ikon namn="varning" farg={fel ? f.signal : f.brand} storlek={20} />
+      <Txt variant="body" farg={fel ? "signal" : "ink"} style={styles.text}>
+        {text}
+      </Txt>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   banner: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: avstand.s2,
+    padding: avstand.s3,
+    borderRadius: radie.md,
+    borderWidth: 1.5,
   },
-  text: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
+  text: { flex: 1 },
 });
