@@ -40,7 +40,6 @@ enum SkadeJaktdagDatabas {
     var drevStart: Int64?
     var antalDrev: Int
 
-    @available(iOS 16.1, *)
     var innehall: SkadeJaktdagAttributes.ContentState {
       SkadeJaktdagAttributes.ContentState(
         hundNamn: hundNamn,
