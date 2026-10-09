@@ -24,6 +24,9 @@ import { periodTillIntervall, type HistorikPeriod } from "@/utils/period";
  *
  * Periodfilter (Allt/Helår/Intervall) - eget lokalt state, inte delat med
  * app/historik/index.tsx (samma resonemang som där).
+ *
+ * 2026-09-08: rubrikens paddingTop höjd 8 → 24, samma fix och motivering
+ * som app/historik/index.tsx - satt för nära skärmkanten.
  */
 export default function Statistik() {
   const colors = useThemeColors();
@@ -159,7 +162,7 @@ const styles = StyleSheet.create({
   laddar: { paddingVertical: 24, alignItems: "center" },
   innehall: {
     paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingTop: 24,
     paddingBottom: 40,
     gap: 20,
   },

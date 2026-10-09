@@ -54,6 +54,10 @@ import { useThemeColors } from "@/theme/colors";
  * bekräftelsestegets knappar) renderas med BigButtons `liten`-prop -
  * halva höjden, som en medveten visuell broms (beslutat 2026-08-29) så de
  * inte trycks på lika obetänksamt som appens övriga stora knappar.
+ *
+ * 2026-09-08: rubriken (hundens namn) saknade paddingTop helt (0) - lades
+ * till 24, samma fix och motivering som app/historik/index.tsx - satt för
+ * nära skärmkanten.
  */
 export default function RedigeraHund() {
   const colors = useThemeColors();
@@ -392,6 +396,7 @@ const styles = StyleSheet.create({
   },
   innehall: {
     paddingHorizontal: 24,
+    paddingTop: 24,
     paddingBottom: 40,
     gap: 20,
   },

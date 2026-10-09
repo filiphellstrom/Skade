@@ -18,6 +18,9 @@ import { useThemeColors } from "@/theme/colors";
  *
  * useFocusEffect så listan uppdateras direkt om man återställer en hund
  * och sedan går tillbaka hit - samma mönster som resten av appen.
+ *
+ * 2026-09-08: rubrikens paddingTop höjd 8 → 24, samma fix och motivering
+ * som app/historik/index.tsx - satt för nära skärmkanten.
  */
 export default function ArkiveradeHundar() {
   const colors = useThemeColors();
@@ -90,7 +93,7 @@ const styles = StyleSheet.create({
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
   innehall: {
     paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingTop: 24,
     paddingBottom: 40,
     gap: 20,
   },

@@ -35,11 +35,16 @@ import { periodTillIntervall, type HistorikPeriod } from "@/utils/period";
  * redigerar/raderar ett drev och går tillbaka hit - samma mönster som
  * resten av appen.
  *
- * Sprint 4 (2026-09-08): "Exportera CSV"-knapp - exporterar ALL historik
- * (alla stoppade drev, oberoende av periodfiltret nedan - Filip: "All
- * historik (alla drev)"), inte bara det som just nu är filtrerat i
+ * Sprint 4 (2026-09-08): "Exportera till CSV"-knapp - exporterar ALL
+ * historik (alla stoppade drev, oberoende av periodfiltret nedan - Filip:
+ * "All historik (alla drev)"), inte bara det som just nu är filtrerat i
  * listan. Se src/utils/export.ts för själva CSV-bygget och den
  * plattformsberoende ladda ner/dela-logiken.
+ *
+ * Samma dag: "Statistik"-knappen döpt om till "Statistik hundar" (Filip) -
+ * tydligare vad den leder till innan man trycker. rubrikens paddingTop
+ * höjd 8 → 24 (matchar de andra skärmarnas headerinset, se
+ * claude/sprint-4-webbversion.md) - texten satt för nära skärmkanten.
  */
 export default function Historik() {
   const colors = useThemeColors();
@@ -97,13 +102,13 @@ export default function Historik() {
         <Text style={[styles.rubrik, { color: colors.text }]}>Historik</Text>
 
         <BigButton
-          label="Statistik"
+          label="Statistik hundar"
           variant="secondary"
           onPress={() => router.push("/historik/statistik")}
         />
 
         <BigButton
-          label="Exportera CSV"
+          label="Exportera till CSV"
           variant="secondary"
           onPress={exportera}
           laddar={exporterar}
@@ -151,7 +156,7 @@ const styles = StyleSheet.create({
   laddar: { paddingVertical: 24, alignItems: "center" },
   innehall: {
     paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingTop: 24,
     paddingBottom: 40,
     gap: 20,
   },

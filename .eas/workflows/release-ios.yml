@@ -1,0 +1,31 @@
+# Bygger iOS-appen på EAS och laddar upp den till App Store Connect.
+#
+# Triggas av push till branchen `release` (inte main - då skulle varje liten
+# ändring bli ett App Store-bygge). Släpp en ny version:
+#   git push origin main:release
+# eller kör manuellt från expo.dev → Workflows.
+#
+# Buildnumret räknas upp automatiskt (eas.json: appVersionSource remote +
+# autoIncrement). Marknadsversionen ("0.1.0") ändras i app.json när det behövs.
+name: Release iOS
+
+on:
+  push:
+    branches: ['release']
+  workflow_dispatch: {}
+
+jobs:
+  build_ios:
+    name: Bygg iOS (production)
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  submit_ios:
+    name: Ladda upp till App Store Connect
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production
