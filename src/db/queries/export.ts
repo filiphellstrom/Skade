@@ -30,7 +30,7 @@ export async function hamtaAllaDrevForExport(
   return db.getAllAsync<ExportDrevRad>(
     `SELECT
        j.datum AS datum,
-       j.jaktmark AS jaktmark,
+       m.namn AS jaktmark,
        h.namn AS hundNamn,
        d.startTimestamp AS startTimestamp,
        d.endTimestamp AS endTimestamp,
@@ -40,6 +40,7 @@ export async function hamtaAllaDrevForExport(
      FROM Drev d
      JOIN Hund h ON h.id = d.hundId
      JOIN Jaktdag j ON j.id = d.jaktdagId
+     JOIN Jaktmark m ON m.id = j.jaktmarkId
      WHERE h.profilId = ? AND d.endTimestamp IS NOT NULL
      ORDER BY j.datum ASC, d.startTimestamp ASC`,
     [profilId],

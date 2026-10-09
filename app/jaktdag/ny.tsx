@@ -10,6 +10,7 @@ import {
 import { router } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { skapaJaktdag } from "@/db/queries/jaktdag";
+import { hamtaEllerSkapaJaktmark } from "@/db/queries/jaktmark";
 import { useProfil } from "@/contexts/ProfilContext";
 import { BackButton } from "@/components/BackButton";
 import { BigButton } from "@/components/BigButton";
@@ -32,6 +33,16 @@ function idagVidMidnatt(): number {
  * är därmed enda fältet. Den tidigare datumväljaren (DateField-komponenten)
  * finns kvar i src/components/ ifall den behövs igen (t.ex. filtrering i en
  * framtida historikvy), men används inte längre här.
+ *
+ * Migration 0003 (2026-10-08): jaktmark är nu ett eget objekt (Jaktmark-
+ * tabellen), men fältet här är MEDVETET fortfarande fri text - ingen
+ * väljare/lista byggd i den här förstudien (se rapporten i projektet).
+ * hamtaEllerSkapaJaktmark() slår upp namnet mot en befintlig jaktmark
+ * eller skapar en ny, så en stavvariant av en mark man redan jagat på
+ * (t.ex. "Storskogen " med mellanslag) blir en NY jaktmark - samma
+ * avgränsning som gällde för hundnamn innan arkivering byggdes. En riktig
+ * väljare (med återanvändning/omdöpning) hör ihop med den bredare
+ * design-översynen (egen jaktmarker-flik) Filip redan beslutat om.
  */
 export default function NyJaktdag() {
   const colors = useThemeColors();
@@ -51,10 +62,11 @@ export default function NyJaktdag() {
     setSparar(true);
     try {
       const db = await getDatabase();
+      const mark = await hamtaEllerSkapaJaktmark(db, profil.id, jaktmark);
       const jaktdag = await skapaJaktdag(db, {
         profilId: profil.id,
         datum: idagVidMidnatt(),
-        jaktmark: jaktmark.trim(),
+        jaktmarkId: mark.id,
       });
       router.replace(`/jaktdag/${jaktdag.id}/valj-hund`);
     } catch (e) {

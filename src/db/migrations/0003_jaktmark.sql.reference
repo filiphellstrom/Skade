@@ -1,0 +1,49 @@
+-- Migration 0003 – jaktmark blir ett eget objekt
+-- Beslutad: 2026-10-08, förstudien om lock-screen Live Activity + jaktmarker.
+-- Se den fulla motiveringen i 0003_jaktmark.ts - det här är bara en ren
+-- kopia av SQL:en för dokumentation/manuell felsökning (t.ex. sqlite3-CLI:t).
+
+CREATE TABLE Jaktmark (
+  id TEXT PRIMARY KEY,
+  profilId TEXT NOT NULL REFERENCES Profil(id),
+  namn TEXT NOT NULL,
+  wehuntId TEXT,                   -- frivillig, framtida Wehunt-koppling (ingen integration än)
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX idx_jaktmark_profil_namn ON Jaktmark(profilId, namn);
+
+-- En Jaktmark-rad per unikt (profilId, jaktmark) som redan finns i Jaktdag.
+INSERT INTO Jaktmark (id, profilId, namn, wehuntId, createdAt, updatedAt)
+SELECT
+  lower(
+    hex(randomblob(4)) || '-' ||
+    hex(randomblob(2)) || '-4' ||
+    substr(hex(randomblob(2)), 2) || '-' ||
+    substr('89ab', abs(random()) % 4 + 1, 1) ||
+    substr(hex(randomblob(2)), 2) || '-' ||
+    hex(randomblob(6))
+  ) AS id,
+  profilId,
+  jaktmark AS namn,
+  NULL AS wehuntId,
+  MIN(createdAt) AS createdAt,
+  MAX(updatedAt) AS updatedAt
+FROM Jaktdag
+GROUP BY profilId, jaktmark;
+
+-- Ny FK-kolumn, backfylld utifrån samma (profilId, jaktmark)-matchning.
+ALTER TABLE Jaktdag ADD COLUMN jaktmarkId TEXT REFERENCES Jaktmark(id);
+
+UPDATE Jaktdag
+SET jaktmarkId = (
+  SELECT m.id FROM Jaktmark m
+  WHERE m.profilId = Jaktdag.profilId AND m.namn = Jaktdag.jaktmark
+);
+
+-- Gamla fritextkolumnen bort - all läsning sker hädanefter via JOIN mot Jaktmark.
+ALTER TABLE Jaktdag DROP COLUMN jaktmark;
+
+CREATE INDEX idx_jaktdag_jaktmark ON Jaktdag(jaktmarkId);
+CREATE INDEX idx_jaktmark_profil ON Jaktmark(profilId);

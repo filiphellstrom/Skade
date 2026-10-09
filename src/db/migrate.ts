@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { sql as migration0001 } from "./migrations/0001_init";
 import { sql as migration0002 } from "./migrations/0002_hund_arkiverad";
+import { sql as migration0003 } from "./migrations/0003_jaktmark";
 
 /**
  * Migrationsfiler i ordning. Varje post motsvarar en fil i ./migrations
@@ -12,6 +13,7 @@ import { sql as migration0002 } from "./migrations/0002_hund_arkiverad";
 const MIGRATIONS: { version: number; sql: string }[] = [
   { version: 1, sql: migration0001 },
   { version: 2, sql: migration0002 },
+  { version: 3, sql: migration0003 },
 ];
 
 /**

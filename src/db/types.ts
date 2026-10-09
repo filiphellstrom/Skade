@@ -43,10 +43,33 @@ export interface Hund {
   updatedAt: UnixTimestamp;
 }
 
+/**
+ * Migration 0003: en jaktmark är nu ett eget objekt, inte fri text på
+ * Jaktdag. `wehuntId` är en nullbar plats för ett framtida Wehunt-objekt-
+ * id - ingen integration byggd än, bara kolumnen reserverad för den.
+ */
+export interface Jaktmark {
+  id: Uuid;
+  profilId: Uuid;
+  namn: string;
+  wehuntId: string | null;
+  createdAt: UnixTimestamp;
+  updatedAt: UnixTimestamp;
+}
+
 export interface Jaktdag {
   id: Uuid;
   profilId: Uuid;
   datum: UnixTimestamp;
+  jaktmarkId: Uuid;
+  /**
+   * Migration 0003: markens namn, hämtat via JOIN mot Jaktmark - inte
+   * längre en egen kolumn på Jaktdag (se queries/jaktdag.ts). Fältet
+   * heter fortfarande `jaktmark` och är fortfarande en vanlig sträng, så
+   * ingen av de skärmar som bara VISAR markens namn (ScreenHeader,
+   * timer.tsx, valj-hund.tsx, historik-skärmarna m.fl.) behövde ändras -
+   * bara de frågor som skapar/hämtar en Jaktdag.
+   */
   jaktmark: string;
   aktivHundId: Uuid | null;
   status: JaktdagStatus;

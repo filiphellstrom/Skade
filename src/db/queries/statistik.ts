@@ -45,10 +45,12 @@ export async function hamtaAvslutadeJaktdagarForProfil(
 
   return db.getAllAsync<JaktdagMedSummering>(
     `SELECT
-       j.*,
+       j.id, j.profilId, j.datum, j.jaktmarkId, m.namn AS jaktmark,
+       j.aktivHundId, j.status, j.avslutadAt, j.createdAt, j.updatedAt,
        COUNT(d.id) AS antalDrev,
        COALESCE(SUM(d.duration), 0) AS totalDrevtid
      FROM Jaktdag j
+     JOIN Jaktmark m ON m.id = j.jaktmarkId
      LEFT JOIN Drev d ON d.jaktdagId = j.id AND d.endTimestamp IS NOT NULL
      WHERE j.profilId = ? AND j.status = 'avslutad' ${villkor}
      GROUP BY j.id

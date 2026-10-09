@@ -3,34 +3,51 @@ import { randomUUID } from "../../utils/uuid";
 import type { Jaktdag, Uuid } from "../types";
 
 /**
+ * SELECT-fragment delat av alla frågor som returnerar en hel Jaktdag.
+ * Migration 0003: `jaktmark` finns inte längre som egen kolumn på
+ * Jaktdag - namnet hämtas via JOIN mot Jaktmark och aliasas till samma
+ * fältnamn som förut, så Jaktdag-typen (och alla skärmar som bara visar
+ * `jaktdag.jaktmark`) är oförändrad.
+ */
+const JAKTDAG_MED_JAKTMARK = `
+  SELECT j.id, j.profilId, j.datum, j.jaktmarkId, m.namn AS jaktmark,
+         j.aktivHundId, j.status, j.avslutadAt, j.createdAt, j.updatedAt
+  FROM Jaktdag j
+  JOIN Jaktmark m ON m.id = j.jaktmarkId
+`;
+
+/**
  * Sida 1 i flödet ("Ny jaktdag"): skapar en Jaktdag-rad direkt, utan
  * hund vald ännu (aktivHundId = NULL). Se beslutat sparflöde i
  * 0001_init.ts-headern - varje steg sparar direkt till databasen.
+ *
+ * Migration 0003: tar `jaktmarkId` istället för en fri textsträng - se
+ * hamtaEllerSkapaJaktmark() i queries/jaktmark.ts, som anropande kod
+ * (app/jaktdag/ny.tsx) kör FÖRE den här funktionen för att slå upp eller
+ * skapa jaktmarken utifrån det fält användaren skrivit i.
  */
 export async function skapaJaktdag(
   db: SQLiteDatabase,
-  params: { profilId: Uuid; datum: number; jaktmark: string },
+  params: { profilId: Uuid; datum: number; jaktmarkId: Uuid },
 ): Promise<Jaktdag> {
   const id = randomUUID();
   const now = Math.floor(Date.now() / 1000);
 
   await db.runAsync(
-    `INSERT INTO Jaktdag (id, profilId, datum, jaktmark, aktivHundId, status, avslutadAt, createdAt, updatedAt)
+    `INSERT INTO Jaktdag (id, profilId, datum, jaktmarkId, aktivHundId, status, avslutadAt, createdAt, updatedAt)
      VALUES (?, ?, ?, ?, NULL, 'pagar', NULL, ?, ?)`,
-    [id, params.profilId, params.datum, params.jaktmark, now, now],
+    [id, params.profilId, params.datum, params.jaktmarkId, now, now],
   );
 
-  return {
-    id,
-    profilId: params.profilId,
-    datum: params.datum,
-    jaktmark: params.jaktmark,
-    aktivHundId: null,
-    status: "pagar",
-    avslutadAt: null,
-    createdAt: now,
-    updatedAt: now,
-  };
+  const skapad = await hamtaJaktdag(db, id);
+  if (!skapad) {
+    // Kan bara hända om jaktmarkId pekar på en jaktmark som inte finns -
+    // INSERT:en ovan hade då redan kastat ett foreign key-fel (PRAGMA
+    // foreign_keys = ON, se src/db/client.ts). Kvar här som ett explicit
+    // skyddsnät snarare än att låta funktionen smygreturnera `undefined`.
+    throw new Error("Kunde inte skapa jaktdagen.");
+  }
+  return skapad;
 }
 
 export async function hamtaJaktdag(
@@ -38,7 +55,7 @@ export async function hamtaJaktdag(
   jaktdagId: Uuid,
 ): Promise<Jaktdag | null> {
   const row = await db.getFirstAsync<Jaktdag>(
-    "SELECT * FROM Jaktdag WHERE id = ?",
+    `${JAKTDAG_MED_JAKTMARK} WHERE j.id = ?`,
     [jaktdagId],
   );
   return row ?? null;
@@ -62,7 +79,7 @@ export async function hamtaPagaendeJaktdag(
   profilId: Uuid,
 ): Promise<Jaktdag | null> {
   const row = await db.getFirstAsync<Jaktdag>(
-    "SELECT * FROM Jaktdag WHERE profilId = ? AND status = 'pagar' ORDER BY createdAt DESC LIMIT 1",
+    `${JAKTDAG_MED_JAKTMARK} WHERE j.profilId = ? AND j.status = 'pagar' ORDER BY j.createdAt DESC LIMIT 1`,
     [profilId],
   );
   return row ?? null;
