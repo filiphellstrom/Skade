@@ -125,7 +125,7 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
           <TextInput
             value={hundNamn}
             onChangeText={setHundNamn}
-            placeholder="T.ex. Bella"
+            placeholder="T.ex. Aston"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="words"
             style={[

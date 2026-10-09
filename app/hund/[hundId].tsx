@@ -240,7 +240,7 @@ export default function RedigeraHund() {
           <TextInput
             value={namn}
             onChangeText={setNamn}
-            placeholder="T.ex. Bella"
+            placeholder="T.ex. Aston"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="words"
             style={[
