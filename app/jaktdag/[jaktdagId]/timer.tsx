@@ -14,11 +14,8 @@ import type { Drev, Hund, Jaktdag } from "@/db/types";
 import { SelectableCard } from "@/components/SelectableCard";
 import { TimerDisplay } from "@/components/TimerDisplay";
 import { useElapsedTime, formateraTid } from "@/hooks/useElapsedTime";
-import {
-  doljDrevPaLasskarm,
-  synkaLasskarm,
-  visaDrevPaLasskarm,
-} from "@/liveActivity";
+import { synkaLasskarm } from "@/liveActivity";
+import { useProfil } from "@/contexts/ProfilContext";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hamtaDrevMedHundnamnForJaktdag } from "@/db/queries/statistik";
@@ -71,6 +68,7 @@ import { Txt } from "@/components/ui/Txt";
  */
 export default function Timer() {
   const { jaktdagId } = useLocalSearchParams<{ jaktdagId: string }>();
+  const { profil } = useProfil();
 
   const [jaktdag, setJaktdag] = useState<Jaktdag | null>(null);
   const [hundarPaJaktdagen, setHundarPaJaktdagen] = useState<Hund[]>([]);
@@ -124,11 +122,7 @@ export default function Timer() {
           setLaddat(true);
           // Låsskärmen (Live Activity) ska spegla databasen - se
           // src/liveActivity.ts. Väntas inte in: får aldrig blockera timern.
-          const drevHund = drev ? hundar.find((h) => h.id === drev.hundId) : undefined;
-          void synkaLasskarm(
-            drev,
-            j && drevHund ? { jaktmark: j.jaktmark, hundNamn: drevHund.namn } : undefined,
-          );
+          void synkaLasskarm(profil.id);
         }
       })();
 
@@ -160,14 +154,7 @@ export default function Timer() {
       setPagaendeDrev(drev);
       setSenasteDrev(null);
       setAntalDrev((n) => n + 1);
-      if (jaktdag) {
-        void visaDrevPaLasskarm({
-          drevId: drev.id,
-          jaktmark: jaktdag.jaktmark,
-          hundNamn: aktivHund.namn,
-          startTimestamp: drev.startTimestamp,
-        });
-      }
+      void synkaLasskarm(profil.id);
     } catch (e) {
       setFel(
         e instanceof Error
@@ -190,7 +177,7 @@ export default function Timer() {
       const avslutatDrev = await stoppaDrev(db, pagaendeDrev.id);
       setSenasteDrev(avslutatDrev);
       setPagaendeDrev(null);
-      void doljDrevPaLasskarm();
+      void synkaLasskarm(profil.id);
       router.push(`/jaktdag/${jaktdagId}/drev/${avslutatDrev.id}?nystoppat=1`);
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte stoppa drevet.");
@@ -211,6 +198,7 @@ export default function Timer() {
       const uppdateradJaktdag = await hamtaJaktdag(db, jaktdagId);
       setJaktdag(uppdateradJaktdag);
       setVisaBytHund(false);
+      void synkaLasskarm(profil.id);
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte byta hund.");
     } finally {

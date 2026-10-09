@@ -4,6 +4,8 @@ import Constants from "expo-constants";
 import { getDatabase } from "@/db/client";
 import { useProfil } from "@/contexts/ProfilContext";
 import { exporteraHistorikSomCsv } from "@/utils/export";
+import { lasDiagnostik } from "@/liveActivity";
+import type { LasskarmDiagnostik } from "@/liveActivity";
 import { useTema } from "@/theme/TemaContext";
 import type { TemaVal } from "@/theme/TemaContext";
 import { avstand } from "@/theme/tokens";
@@ -83,6 +85,8 @@ export default function Installningar() {
         </Kort>
       </View>
 
+      <LasskarmsDiagnostik />
+
       <View>
         <Etikett>OM SKADE</Etikett>
         <Kort lista>
@@ -103,6 +107,73 @@ export default function Installningar() {
         </Kort>
       </View>
     </Skarm>
+  );
+}
+
+/**
+ * Låsskärmsdiagnostik (sprint 7): svarar på förstudiens frågor som bara
+ * kan testas på en riktig iPhone. Läser mätpunkter som Starta/Stoppa-
+ * knapparna på låsskärmen och appens JS-start sparar (se
+ * targets/widget/_shared/SkadeLasskarmIntents.swift). Visas bara i
+ * iOS-appen. Tolkning per knapptryck:
+ * - "appen var igång": samma process körde JS mer än 10 s före trycket.
+ * - "ny process, JS startade": appens JS-motor startade inom 10 s runt
+ *   trycket, alltså startade iOS appen för knappen (t.ex. efter bortsvepning).
+ * - "ny process, bara Swift": ingen JS-start i processen - bara knappens
+ *   Swift-kod kördes.
+ */
+function tolka(d: LasskarmDiagnostik, i: LasskarmDiagnostik["intents"][number]): string {
+  const sammaProcess = d.jsStarter.filter((j) => j.pid === i.pid);
+  // JS startade i samma process mer än 10 s före trycket: appen var redan igång.
+  if (sammaProcess.some((j) => j.tid < i.tid - 10)) {
+    return "appen var igång";
+  }
+  // JS startade inom 10 s runt trycket: iOS startade appen (och JS) för knappen.
+  if (sammaProcess.some((j) => Math.abs(j.tid - i.tid) <= 10)) {
+    return "ny process, JS startade";
+  }
+  return "ny process, bara Swift";
+}
+
+function LasskarmsDiagnostik() {
+  const [visa, setVisa] = useState(false);
+  const [data, setData] = useState<LasskarmDiagnostik | null>(null);
+  if (lasDiagnostik() === null) {
+    return null;
+  }
+  const oppna = () => {
+    setData(lasDiagnostik());
+    setVisa((v) => !v);
+  };
+  const intents = [...(data?.intents ?? [])].reverse().slice(0, 8);
+  return (
+    <View>
+      <Etikett>LÅSSKÄRM</Etikett>
+      <Kort lista>
+        <Listrad
+          forsta
+          titel="Låsskärmsdiagnostik"
+          undertitel="Mätningar från Starta/Stoppa på låsskärmen"
+          hoger={visa ? "Dölj" : "Visa"}
+          hogerFarg="brand"
+          onPress={oppna}
+        />
+        {visa && data && intents.length === 0 && (
+          <Listrad titel="Inga knapptryck än" undertitel="Tryck Starta eller Stoppa på låsskärmen och öppna sedan den här vyn igen." />
+        )}
+        {visa &&
+          data &&
+          intents.map((i) => (
+            <Listrad
+              key={`${i.tid}-${i.typ}`}
+              titel={`${i.typ}: ${i.resultat}`}
+              undertitel={`${new Date(i.tid * 1000).toLocaleString("sv-SE")} · ${tolka(data, i)}`}
+              hoger={`${i.ms} ms`}
+              hogerFarg="ink"
+            />
+          ))}
+      </Kort>
+    </View>
   );
 }
 
