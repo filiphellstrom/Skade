@@ -16,7 +16,9 @@ import { Knapp } from "@/components/ui/Knapp";
 import { Etikett, Felrad, Skarm } from "@/components/ui/Delar";
 import { Txt } from "@/components/ui/Txt";
 
-const VILTARTER = ["Rådjur", "Vildsvin", "Räv", "Hare", "Älg"];
+// Ordning bestämd av Filip 2026-10-09. "Eget" (fritext i en dialog) läggs
+// till av ChipSelect efter Övrigt.
+const VILTARTER = ["Älg", "Vildsvin", "Rådjur", "Dovhjort", "Kronhjort", "Räv", "Hare", "Övrigt"];
 const UTFALL = ["Fälld", "Missad", "Ingen kontakt"];
 
 /**
@@ -240,7 +242,15 @@ export default function RedigeraDrev() {
         </View>
       )}
 
-      <ChipSelect label="Viltart" options={VILTARTER} value={species} onChange={setSpecies} />
+      <ChipSelect
+        label="Viltart"
+        options={VILTARTER}
+        value={species}
+        onChange={setSpecies}
+        egetTitel="Eget"
+        egetLage="dialog"
+        dialogRubrik="Eget vilt"
+      />
       <ChipSelect label="Utfall" options={UTFALL} value={outcome} onChange={setOutcome} />
       <View>
         <Etikett>TID</Etikett>
