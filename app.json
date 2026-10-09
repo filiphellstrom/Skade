@@ -14,15 +14,18 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.skade.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSupportsLiveActivities": true
+      },
+      "appleTeamId": "372JXBLW33"
     },
     "android": {
       "package": "com.skade.app"
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true

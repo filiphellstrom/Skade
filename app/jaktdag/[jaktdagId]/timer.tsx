@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +25,11 @@ import { InlineBanner } from "@/components/InlineBanner";
 import { TimerDisplay } from "@/components/TimerDisplay";
 import { useElapsedTime, formateraTid } from "@/hooks/useElapsedTime";
 import { useThemeColors } from "@/theme/colors";
+import {
+  doljDrevPaLasskarm,
+  synkaLasskarm,
+  visaDrevPaLasskarm,
+} from "@/liveActivity";
 
 /**
  * Sida 3: Starta/stoppa timer. Robust mot att appen dödas/backgroundas
@@ -52,6 +58,11 @@ import { useThemeColors } from "@/theme/colors";
  * headern och scrollinnehållet) istället för att bara ha det på
  * `scrollInnehall` - synligt totalt inset oförändrat för allt under
  * headern.
+ *
+ * 2026-10-09: drevklockan speglas på låsskärmen (iOS Live Activity) via
+ * src/liveActivity.ts - startas efter startaDrev(), avslutas efter
+ * stoppaDrev(), och synkas mot databasen vid varje fokus. Alla anrop är
+ * fire-and-forget efter att databasskrivningen redan lyckats.
  */
 export default function Timer() {
   const colors = useThemeColors();
@@ -70,6 +81,20 @@ export default function Timer() {
   // app/index.tsx. Här betyder det bland annat att hundlistan för
   // byt-hund-läget är färsk om man t.ex. lagt till en hund på jaktdagen
   // från ett annat håll medan man var borta från timern.
+  // Ökas när appen kommer tillbaka till förgrunden, så att laddningen
+  // nedan körs om. Behövs för stoppknappen på låsskärmen: den stoppar
+  // drevet direkt i databasen medan appen ligger i bakgrunden, och
+  // useFocusEffect körs inte av att appen bara aktiveras igen.
+  const [forgrundRunda, setForgrundRunda] = useState(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        setForgrundRunda((n) => n + 1);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let avbruten = false;
@@ -90,13 +115,23 @@ export default function Timer() {
             !drev && senaste && senaste.endTimestamp !== null ? senaste : null,
           );
           setLaddat(true);
+          // Låsskärmen (Live Activity) ska spegla databasen - se
+          // src/liveActivity.ts. Väntas inte in: får aldrig blockera timern.
+          const drevHund = drev ? hundar.find((h) => h.id === drev.hundId) : undefined;
+          void synkaLasskarm(
+            drev,
+            j && drevHund ? { jaktmark: j.jaktmark, hundNamn: drevHund.namn } : undefined,
+          );
         }
       })();
 
       return () => {
         avbruten = true;
       };
-    }, [jaktdagId]),
+      // forgrundRunda används inte i kroppen - den finns med just för att
+      // trigga omladdning när appen aktiveras (se ovan).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [jaktdagId, forgrundRunda]),
   );
 
   const elapsed = useElapsedTime(pagaendeDrev?.startTimestamp ?? null);
@@ -117,6 +152,14 @@ export default function Timer() {
       });
       setPagaendeDrev(drev);
       setSenasteDrev(null);
+      if (jaktdag) {
+        void visaDrevPaLasskarm({
+          drevId: drev.id,
+          jaktmark: jaktdag.jaktmark,
+          hundNamn: aktivHund.namn,
+          startTimestamp: drev.startTimestamp,
+        });
+      }
     } catch (e) {
       setFel(
         e instanceof Error
@@ -139,6 +182,7 @@ export default function Timer() {
       const avslutatDrev = await stoppaDrev(db, pagaendeDrev.id);
       setSenasteDrev(avslutatDrev);
       setPagaendeDrev(null);
+      void doljDrevPaLasskarm();
       router.push(`/jaktdag/${jaktdagId}/drev/${avslutatDrev.id}?nystoppat=1`);
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte stoppa drevet.");

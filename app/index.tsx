@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +19,7 @@ import { InfoRow } from "@/components/InfoRow";
 import { InlineBanner } from "@/components/InlineBanner";
 import { formateraTid } from "@/hooks/useElapsedTime";
 import { useThemeColors } from "@/theme/colors";
+import { synkaLasskarm } from "@/liveActivity";
 
 /**
  * Huvudskärm (Sprint 2). Två lägen beroende på om profilen har en
@@ -69,6 +71,18 @@ export default function HuvudSkarm() {
   const [avslutar, setAvslutar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
 
+  // Ladda om när appen aktiveras igen - ett drev kan ha stoppats från
+  // låsskärmen (Live Activity) medan appen låg i bakgrunden.
+  const [forgrundRunda, setForgrundRunda] = useState(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        setForgrundRunda((n) => n + 1);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let avbruten = false;
@@ -84,13 +98,23 @@ export default function HuvudSkarm() {
           setPagaende(p);
           setHundar(h);
           setPagaendeDrev(drev);
+          // Låsskärmen ska spegla databasen (src/liveActivity.ts): avslutar
+          // en kvarliggande Live Activity om inget drev pågår, eller
+          // återskapar den om appen dödats mitt i ett drev.
+          const drevHund = drev ? h.find((x) => x.hundId === drev.hundId) : undefined;
+          void synkaLasskarm(
+            drev,
+            p && drevHund ? { jaktmark: p.jaktmark, hundNamn: drevHund.namn } : undefined,
+          );
         }
       })();
 
       return () => {
         avbruten = true;
       };
-    }, [profil.id]),
+      // forgrundRunda triggar bara omladdning (se ovan).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profil.id, forgrundRunda]),
   );
 
   const fortsattJaktdag = () => {
