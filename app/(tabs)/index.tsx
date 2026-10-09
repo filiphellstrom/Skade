@@ -147,7 +147,7 @@ export default function Hem() {
 
   const sammanfattning = pagaende
     ? [
-        antalDrevText(pagaende.antalDrev),
+        pagaende.antalDrev > 0 ? antalDrevText(pagaende.antalDrev) : null,
         pagaende.totalTid > 0 ? formateraVaraktighet(pagaende.totalTid) : null,
         listaNamn(pagaende.hundar.map((h) => h.namn)) || null,
       ]
@@ -178,7 +178,9 @@ export default function Hem() {
           <Etikett farg="brand">PÅGÅENDE JAKTDAG</Etikett>
           <Txt variant="title2">{pagaende.jaktdag.jaktmark}</Txt>
           <Txt variant="caption" style={styles.sammanfattning}>
-            {pagaende.drev ? `Drev pågår · ${sammanfattning}` : sammanfattning}
+            {[pagaende.drev ? "Drev pågår" : null, sammanfattning || (pagaende.drev ? null : "Inga drev än")]
+              .filter(Boolean)
+              .join(" · ")}
           </Txt>
           <View style={styles.knappar}>
             <Knapp titel="Fortsätt jaktdag" onPress={fortsatt} />

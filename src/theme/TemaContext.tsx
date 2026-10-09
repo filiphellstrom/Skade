@@ -171,3 +171,22 @@ export function useTimerFarger(): { farger: Farger; schema: Schema } {
   const { timerSchema } = useTema();
   return { farger: FARGER[timerSchema], schema: timerSchema };
 }
+
+/**
+ * Lägger timerns eget tema över allt innehåll inuti (Txt, Knapp, Tillbaka
+ * osv. läser useTema() och får då timerns färger). Används bara runt
+ * timern - resten av appen påverkas inte.
+ */
+export function TimerTemaOmrade({ children }: { children: ReactNode }) {
+  const yttre = useTema();
+  const value = useMemo<TemaContextValue>(
+    () => ({
+      ...yttre,
+      schema: yttre.timerSchema,
+      farger: FARGER[yttre.timerSchema],
+      kortSkugga: KORT_SKUGGA[yttre.timerSchema],
+    }),
+    [yttre],
+  );
+  return <TemaContext.Provider value={value}>{children}</TemaContext.Provider>;
+}

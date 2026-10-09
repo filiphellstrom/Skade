@@ -1,15 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  AppState,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
-import { avslutaJaktdag, hamtaJaktdag, settAktivHund } from "@/db/queries/jaktdag";
+import { hamtaJaktdag, settAktivHund } from "@/db/queries/jaktdag";
 import { hamtaHundarForJaktdag } from "@/db/queries/hund";
 import {
   hamtaPagaendeDrev,
@@ -18,18 +11,23 @@ import {
   stoppaDrev,
 } from "@/db/queries/drev";
 import type { Drev, Hund, Jaktdag } from "@/db/types";
-import { BigButton } from "@/components/BigButton";
 import { SelectableCard } from "@/components/SelectableCard";
-import { ScreenHeader } from "@/components/ScreenHeader";
-import { InlineBanner } from "@/components/InlineBanner";
 import { TimerDisplay } from "@/components/TimerDisplay";
 import { useElapsedTime, formateraTid } from "@/hooks/useElapsedTime";
-import { useThemeColors } from "@/theme/colors";
 import {
   doljDrevPaLasskarm,
   synkaLasskarm,
   visaDrevPaLasskarm,
 } from "@/liveActivity";
+import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { hamtaDrevMedHundnamnForJaktdag } from "@/db/queries/statistik";
+import { TimerTemaOmrade, useFarger, useTema } from "@/theme/TemaContext";
+import { avstand, radie, tryck } from "@/theme/tokens";
+import { Knapp } from "@/components/ui/Knapp";
+import { Felrad, TillbakaKnapp } from "@/components/ui/Delar";
+import { Ikon } from "@/components/ui/Ikon";
+import { Txt } from "@/components/ui/Txt";
 
 /**
  * Sida 3: Starta/stoppa timer. Robust mot att appen dödas/backgroundas
@@ -63,9 +61,15 @@ import {
  * src/liveActivity.ts - startas efter startaDrev(), avslutas efter
  * stoppaDrev(), och synkas mot databasen vid varje fokus. Alla anrop är
  * fire-and-forget efter att databasskrivningen redan lyckats.
+ *
+ * Sprint 6 (designlyftet): fältläge enligt Design Systemet. Hund, tid och
+ * EN knapp (Starta/Stoppa drev, 112 px hög, ord + ikon). Stor Tillbaka
+ * uppe till vänster, tema-knapp uppe till höger som bara gäller timern
+ * (TimerTemaOmrade - följer appens tema tills man tryckt, sparas separat).
+ * "Avsluta jaktdag" finns inte längre här utan på Hem. "Byt hund" finns
+ * kvar som en liten textknapp under hundnamnet, bara mellan två drev.
  */
 export default function Timer() {
-  const colors = useThemeColors();
   const { jaktdagId } = useLocalSearchParams<{ jaktdagId: string }>();
 
   const [jaktdag, setJaktdag] = useState<Jaktdag | null>(null);
@@ -74,6 +78,7 @@ export default function Timer() {
   const [senasteDrev, setSenasteDrev] = useState<Drev | null>(null);
   const [visaBytHund, setVisaBytHund] = useState(false);
   const [laddat, setLaddat] = useState(false);
+  const [antalDrev, setAntalDrev] = useState(0);
   const [sparar, setSparar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
 
@@ -101,11 +106,12 @@ export default function Timer() {
 
       (async () => {
         const db = await getDatabase();
-        const [j, hundar, drev, senaste] = await Promise.all([
+        const [j, hundar, drev, senaste, allaDrev] = await Promise.all([
           hamtaJaktdag(db, jaktdagId),
           hamtaHundarForJaktdag(db, jaktdagId),
           hamtaPagaendeDrev(db, jaktdagId),
           hamtaSenasteDrev(db, jaktdagId),
+          hamtaDrevMedHundnamnForJaktdag(db, jaktdagId),
         ]);
         if (!avbruten) {
           setJaktdag(j);
@@ -114,6 +120,7 @@ export default function Timer() {
           setSenasteDrev(
             !drev && senaste && senaste.endTimestamp !== null ? senaste : null,
           );
+          setAntalDrev(allaDrev.length);
           setLaddat(true);
           // Låsskärmen (Live Activity) ska spegla databasen - se
           // src/liveActivity.ts. Väntas inte in: får aldrig blockera timern.
@@ -152,6 +159,7 @@ export default function Timer() {
       });
       setPagaendeDrev(drev);
       setSenasteDrev(null);
+      setAntalDrev((n) => n + 1);
       if (jaktdag) {
         void visaDrevPaLasskarm({
           drevId: drev.id,
@@ -210,155 +218,193 @@ export default function Timer() {
     }
   };
 
-  const avsluta = async () => {
-    if (sparar || pagaendeDrev) {
-      return;
-    }
-    setFel(null);
-    setSparar(true);
-    try {
-      const db = await getDatabase();
-      await avslutaJaktdag(db, jaktdagId);
-      // Stänger hela jaktdagsflödet och landar på Hem-fliken.
-      router.dismissTo("/");
-    } catch (e) {
-      setFel(
-        e instanceof Error ? e.message : "Kunde inte avsluta jaktdagen.",
-      );
-      setSparar(false);
-    }
-  };
-
   if (!laddat || !jaktdag) {
     return (
-      <View style={[styles.laddar, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <TimerTemaOmrade>
+        <Laddar />
+      </TimerTemaOmrade>
     );
   }
 
+  const drevNummer = pagaendeDrev ? antalDrev : antalDrev + 1;
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScreenHeader
-        jaktmark={jaktdag.jaktmark}
-        datum={new Date(jaktdag.datum * 1000)}
-        visaTillbaka
+    <TimerTemaOmrade>
+      <TimerVy
+        hundNamn={aktivHund?.namn ?? "Ingen hund vald"}
+        kontext={`${jaktdag.jaktmark} · Drev ${drevNummer}`}
+        sekunder={elapsed}
+        pagar={pagaendeDrev !== null}
+        senasteDrevTid={senasteDrev && !pagaendeDrev ? formateraTid(senasteDrev.duration ?? 0) : null}
+        kanStarta={!!aktivHund}
+        sparar={sparar}
+        fel={fel}
+        onStart={start}
+        onStopp={stopp}
+        bytHund={
+          hundarPaJaktdagen.length > 1 && !pagaendeDrev
+            ? {
+                visa: visaBytHund,
+                vaxla: () => setVisaBytHund((v) => !v),
+                hundar: hundarPaJaktdagen,
+                aktivId: jaktdag.aktivHundId,
+                valj: bytAktivHund,
+              }
+            : null
+        }
       />
+    </TimerTemaOmrade>
+  );
+}
+
+function Laddar() {
+  const f = useFarger();
+  return (
+    <View style={[styles.laddar, { backgroundColor: f.surface100 }]}>
+      <ActivityIndicator size="large" color={f.brand} />
+    </View>
+  );
+}
+
+/**
+ * Själva fältläget, ritat inom TimerTemaOmrade så att alla färger kommer
+ * från timerns eget tema. Tre element enligt Design Systemet (TimerPanel):
+ * hund + jaktmark/drevnummer överst, drevtiden i mitten och en enda stor
+ * knapp längst ner. Stor Tillbaka uppe till vänster, tema-knapp uppe till
+ * höger (gäller bara timern).
+ */
+function TimerVy(props: {
+  hundNamn: string;
+  kontext: string;
+  sekunder: number;
+  pagar: boolean;
+  senasteDrevTid: string | null;
+  kanStarta: boolean;
+  sparar: boolean;
+  fel: string | null;
+  onStart: () => void;
+  onStopp: () => void;
+  bytHund: {
+    visa: boolean;
+    vaxla: () => void;
+    hundar: Hund[];
+    aktivId: string | null;
+    valj: (id: string) => void;
+  } | null;
+}) {
+  const { farger, schema, setTimerTemaVal } = useTema();
+  const insets = useSafeAreaInsets();
+  const mork = schema === "dark";
+
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: farger.surface100,
+          paddingTop: insets.top + avstand.s4,
+          paddingBottom: Math.max(insets.bottom, avstand.s4) + avstand.s4,
+        },
+      ]}
+    >
+      <StatusBar style={mork ? "light" : "dark"} />
+      <View style={styles.topprad}>
+        <TillbakaKnapp />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={mork ? "Byt timern till ljust tema" : "Byt timern till mörkt tema"}
+          onPress={() => setTimerTemaVal(mork ? "ljust" : "morkt")}
+          style={({ pressed }) => [
+            styles.temaKnapp,
+            { backgroundColor: farger.surface300, opacity: pressed ? 0.82 : 1 },
+          ]}
+        >
+          <Ikon namn={mork ? "sol" : "mane"} farg={farger.ink} />
+          <Txt variant="button">{mork ? "Ljust" : "Mörkt"}</Txt>
+        </Pressable>
+      </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollInnehall}
+        style={styles.flex}
+        contentContainerStyle={styles.mitten}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.mitten}>
-          <Text style={[styles.hundnamn, { color: colors.text }]}>
-            {aktivHund?.namn ?? "Ingen hund vald"}
-          </Text>
-
-          {hundarPaJaktdagen.length > 1 && !pagaendeDrev && (
-            <BigButton
-              label={visaBytHund ? "Avbryt hundbyte" : "Byt hund"}
-              variant="secondary"
-              onPress={() => setVisaBytHund((v) => !v)}
+        <View style={styles.hundBlock}>
+          <Txt variant="title2" style={styles.center}>
+            {props.hundNamn}
+          </Txt>
+          <Txt variant="caption" farg="inkMuted" style={styles.center}>
+            {props.kontext}
+          </Txt>
+          {props.bytHund && (
+            <Knapp
+              variant="text"
+              titel={props.bytHund.visa ? "Avbryt hundbyte" : "Byt hund"}
+              onPress={props.bytHund.vaxla}
+              style={styles.bytHund}
             />
           )}
-
-          {visaBytHund && (
-            <View style={styles.lista}>
-              {hundarPaJaktdagen.map((hund) => (
-                <SelectableCard
-                  key={hund.id}
-                  titel={hund.namn}
-                  vald={hund.id === jaktdag.aktivHundId}
-                  onPress={() => bytAktivHund(hund.id)}
-                  typ="radio"
-                />
-              ))}
-            </View>
-          )}
-
-          <TimerDisplay sekunder={elapsed} pagar={pagaendeDrev !== null} />
-
-          {senasteDrev && !pagaendeDrev && (
-            <Text style={[styles.senasteDrevTid, { color: colors.textMuted }]}>
-              Senaste drevet: {formateraTid(senasteDrev.duration ?? 0)}
-            </Text>
-          )}
-
-          {fel && <InlineBanner text={fel} typ="error" />}
         </View>
 
-        <View style={styles.knappblock}>
-          {pagaendeDrev ? (
-            <BigButton
-              label="Stoppa drev"
-              variant="danger"
-              onPress={stopp}
-              laddar={sparar}
-            />
-          ) : (
-            <BigButton
-              label="Starta drev"
-              onPress={start}
-              disabled={!aktivHund}
-              laddar={sparar}
-            />
-          )}
+        {props.bytHund?.visa && (
+          <View style={styles.hundlista}>
+            {props.bytHund.hundar.map((h) => (
+              <SelectableCard
+                key={h.id}
+                typ="radio"
+                titel={h.namn}
+                vald={h.id === props.bytHund?.aktivId}
+                onPress={() => props.bytHund?.valj(h.id)}
+              />
+            ))}
+          </View>
+        )}
 
-          <BigButton
-            label="Avsluta jaktdag"
-            variant="secondary"
-            onPress={avsluta}
-            disabled={pagaendeDrev !== null}
-            laddar={sparar && pagaendeDrev === null}
-          />
-          {pagaendeDrev !== null && (
-            <Text style={[styles.avslutaHint, { color: colors.textMuted }]}>
-              Stoppa det pågående drevet för att kunna avsluta jaktdagen.
-            </Text>
-          )}
-        </View>
+        <TimerDisplay sekunder={props.sekunder} pagar={props.pagar} />
+
+        {props.senasteDrevTid && (
+          <Txt variant="caption" farg="inkMuted" style={styles.center}>
+            Senaste drevet: {props.senasteDrevTid}
+          </Txt>
+        )}
+
+        <Felrad text={props.fel} />
       </ScrollView>
+
+      {props.pagar ? (
+        <Knapp variant="stopp" ikon="stopp" titel="Stoppa drev" onPress={props.onStopp} laddar={props.sparar} minHojd={112} />
+      ) : (
+        <Knapp
+          variant="start"
+          ikon="spela"
+          titel="Starta drev"
+          onPress={props.onStart}
+          disabled={!props.kanStarta}
+          laddar={props.sparar}
+          minHojd={112}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-  },
-  scrollInnehall: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-    paddingBottom: 32,
-    gap: 24,
-  },
-  mitten: {
+  container: { flex: 1, paddingHorizontal: avstand.s4, gap: avstand.s4 },
+  topprad: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  temaKnapp: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    width: "100%",
+    gap: avstand.s2,
+    minHeight: tryck.min,
+    paddingLeft: avstand.s4,
+    paddingRight: 20,
+    borderRadius: radie.md,
   },
-  hundnamn: {
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  senasteDrevTid: {
-    fontSize: 15,
-    fontWeight: "600",
-    textAlign: "center",
-    marginTop: 8,
-  },
-  lista: {
-    width: "100%",
-    gap: 10,
-  },
-  knappblock: {
-    gap: 12,
-  },
-  avslutaHint: {
-    fontSize: 13,
-    textAlign: "center",
-  },
+  mitten: { flexGrow: 1, justifyContent: "center", alignItems: "stretch", gap: avstand.s4 },
+  hundBlock: { alignItems: "center", gap: avstand.s1 },
+  bytHund: { alignSelf: "center" },
+  hundlista: { gap: avstand.s2 },
+  center: { textAlign: "center" },
 });

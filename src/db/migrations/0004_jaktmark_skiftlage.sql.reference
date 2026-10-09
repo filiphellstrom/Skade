@@ -1,0 +1,34 @@
+-- Migration 0004 – jaktmarksnamn unika oavsett skiftläge (2026-10-09).
+-- Se 0004_jaktmark_skiftlage.ts för motiveringen. Ren kopia för felsökning.
+
+CREATE TEMP TABLE _jm_nyckel AS
+SELECT
+  id,
+  profilId,
+  createdAt,
+  lower(trim(replace(replace(replace(namn, 'Å', 'å'), 'Ä', 'ä'), 'Ö', 'ö'))) AS k
+FROM Jaktmark;
+
+CREATE TEMP TABLE _jm_behall AS
+SELECT
+  a.id AS fran,
+  (SELECT b.id FROM _jm_nyckel b
+   WHERE b.profilId = a.profilId AND b.k = a.k
+   ORDER BY b.createdAt ASC, b.id ASC
+   LIMIT 1) AS till
+FROM _jm_nyckel a;
+
+UPDATE Jaktdag
+SET jaktmarkId = (SELECT till FROM _jm_behall WHERE fran = Jaktdag.jaktmarkId)
+WHERE jaktmarkId IN (SELECT fran FROM _jm_behall WHERE fran <> till);
+
+DELETE FROM Jaktmark
+WHERE id IN (SELECT fran FROM _jm_behall WHERE fran <> till);
+
+DROP TABLE _jm_behall;
+DROP TABLE _jm_nyckel;
+
+DROP INDEX idx_jaktmark_profil_namn;
+
+CREATE UNIQUE INDEX idx_jaktmark_profil_namnnyckel
+ON Jaktmark(profilId, lower(trim(replace(replace(replace(namn, 'Å', 'å'), 'Ä', 'ä'), 'Ö', 'ö'))));

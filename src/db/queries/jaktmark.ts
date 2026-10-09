@@ -13,10 +13,10 @@ import type { Jaktmark, JaktmarkMedSummering, Uuid } from "../types";
  * viker a-z och alltså inte å, ä och ö. Profilen har få jaktmarker, så
  * jämförelsen över alla rader är billig.
  *
- * Databasens unika index (profilId, namn) är fortfarande skiftlägeskänsligt.
- * Befintliga dubbletter som bara skiljer i skiftläge slås INTE ihop här -
- * det kräver en migration som ändrar data (inväntar beslut, se
- * claude/sprint-6-designlyft.md).
+ * Migration 0004 slog ihop befintliga dubbletter och lade ett unikt
+ * uttrycksindex på (profilId, namnnyckel) som skyddsnät. Appen kontrollerar
+ * ändå själv först, så att användaren får ett begripligt fel i stället för
+ * ett constraint-fel.
  */
 
 /** Jämförelsenyckel för ett jaktmarksnamn. */

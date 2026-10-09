@@ -52,9 +52,10 @@ export const FARGER: Record<Schema, Farger> = {
     ink: "#14201b",
     inkMuted: "#55635c",
     border: "#d5ddd8",
-    // Designens värde. Ger 2,85:1 mot surface300 (krav 3:1 för kontroller) -
-    // flaggat i sprint-6-designlyft.md, inväntar beslut.
-    borderStrong: "#7e8f86",
+    // Mörkare än designens #7e8f86, som gav 2,85:1 mot surface300 (krav 3:1
+    // för kontrollkanter). #74857c ger 3,26:1 / 3,59:1 / 3,90:1 mot
+    // surface300/100/200. Godkänt av Filip 2026-10-09.
+    borderStrong: "#74857c",
     brand: "#1f4d3a",
     onBrand: "#ffffff",
     brandSoft: "#dde9e3",
