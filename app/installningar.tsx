@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Linking, StyleSheet, View } from "react-native";
 import Constants from "expo-constants";
+import { router } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { useProfil } from "@/contexts/ProfilContext";
 import { exporteraHistorikSomCsv } from "@/utils/export";
@@ -18,7 +19,7 @@ const INTEGRITETSPOLICY = "https://claude.ai/code/artifact/2026c8d0-e5ac-4cbc-94
 
 /**
  * Inställningar (sprint 6). Öppnas från kugghjulet på Hem, ligger utanför
- * flikarna. Tema (Ljust, Mörkt, System) och Exportera till CSV.
+ * flikarna. Hjälp (/hjalp), Tema (Ljust, Mörkt, System) och Exportera till CSV.
  * Timerns eget tema ändras på timern, inte här.
  */
 export default function Installningar() {
@@ -50,6 +51,19 @@ export default function Installningar() {
         <Txt variant="title1" accessibilityRole="header">
           Inställningar
         </Txt>
+      </View>
+
+      <View>
+        <Etikett>HJÄLP</Etikett>
+        <Kort lista>
+          <Listrad
+            forsta
+            titel="Hjälp och instruktioner"
+            undertitel="Hur appen fungerar, steg för steg"
+            hojd={72}
+            onPress={() => router.push("/hjalp")}
+          />
+        </Kort>
       </View>
 
       <View>
