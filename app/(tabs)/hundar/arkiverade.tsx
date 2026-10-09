@@ -73,7 +73,7 @@ export default function ArkiveradeHundar() {
                   key={h.id}
                   titel={h.namn}
                   undertitel={h.ras ?? undefined}
-                  onPress={() => router.push(`/hund/${h.id}`)}
+                  onPress={() => router.push(`/hundar/${h.id}`)}
                 />
               ))}
             </View>

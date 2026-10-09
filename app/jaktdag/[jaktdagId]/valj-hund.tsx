@@ -93,7 +93,7 @@ export default function ValjHund() {
   const kanBekrafta = valdaLista.length > 0 && effektivAktivHundId !== null;
 
   const laggTillHundLank = () =>
-    router.push(`/hund/ny?jaktdagId=${jaktdagId}`);
+    router.push(`/jaktdag/${jaktdagId}/ny-hund`);
 
   const bekrafta = async () => {
     if (!kanBekrafta || sparar || !effektivAktivHundId) {

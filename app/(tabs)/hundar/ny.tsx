@@ -7,7 +7,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { skapaHund } from "@/db/queries/hund";
 import { useProfil } from "@/contexts/ProfilContext";
@@ -18,18 +18,16 @@ import { useThemeColors } from "@/theme/colors";
 /**
  * Lägg till en (ytterligare) hund. Första hunden skapas redan i
  * OnboardingScreen vid första körning - den här skärmen är för fler
- * hundar senare, länkad från "Välj hund"-listans tomt-state/
- * "Lägg till hund"-länk (se app/jaktdag/[jaktdagId]/valj-hund.tsx).
+ * hundar senare.
  *
- * `jaktdagId` skickas med som query-param när skärmen öppnas därifrån, så
- * vi kan navigera tillbaka dit efteråt - `valj-hund.tsx` hämtar om
- * hundlistan varje gång skärmen får fokus, så den nya hunden dyker upp
- * automatiskt.
+ * Sprint 6: används på två ställen - Hundar-fliken (/hundar/ny) och
+ * jaktdagsflödet (/jaktdag/[jaktdagId]/ny-hund, som återanvänder den här
+ * komponenten så att flikfältet inte dyker upp mitt i flödet). Efter Spara
+ * går man tillbaka dit man kom ifrån; båda listorna hämtas om vid fokus.
  */
 export default function NyHund() {
   const colors = useThemeColors();
   const { profil } = useProfil();
-  const { jaktdagId } = useLocalSearchParams<{ jaktdagId?: string }>();
 
   const [namn, setNamn] = useState("");
   const [sparar, setSparar] = useState(false);
@@ -47,11 +45,9 @@ export default function NyHund() {
       const db = await getDatabase();
       await skapaHund(db, { profilId: profil.id, namn: namn.trim() });
 
-      if (jaktdagId) {
-        router.replace(`/jaktdag/${jaktdagId}/valj-hund`);
-      } else {
-        router.back();
-      }
+      // Tillbaka till där man kom ifrån - Hundar-fliken eller "Välj hundar
+      // som ska jaga" i jaktdagsflödet. Båda hämtar om listan vid fokus.
+      router.back();
     } catch (e) {
       setFel(
         e instanceof Error ? e.message : "Kunde inte spara hunden.",

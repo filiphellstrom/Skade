@@ -219,7 +219,8 @@ export default function Timer() {
     try {
       const db = await getDatabase();
       await avslutaJaktdag(db, jaktdagId);
-      router.replace("/");
+      // Stänger hela jaktdagsflödet och landar på Hem-fliken.
+      router.dismissTo("/");
     } catch (e) {
       setFel(
         e instanceof Error ? e.message : "Kunde inte avsluta jaktdagen.",

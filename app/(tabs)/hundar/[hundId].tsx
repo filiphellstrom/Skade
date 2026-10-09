@@ -116,7 +116,7 @@ export default function RedigeraHund() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/");
+      router.replace("/hundar");
     }
   };
 
