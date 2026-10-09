@@ -1,4 +1,4 @@
-import { useColorScheme } from "react-native";
+import { useFarger } from "./TemaContext";
 
 /**
  * Enkel färgpalett byggd för UX-principerna i projektinstruktionen
@@ -28,49 +28,33 @@ export interface ThemeColors {
   bannerInfoText: string;
 }
 
-const light: ThemeColors = {
-  background: "#F5F3EF",
-  surface: "#FFFFFF",
-  surfaceSelected: "#E7F3E9",
-  border: "#D8D3C8",
-  borderSelected: "#2F6B3A",
-  text: "#1A1A16",
-  textMuted: "#5C594F",
-  textOnPrimary: "#FFFFFF",
-  primary: "#2F6B3A",
-  primaryPressed: "#255730",
-  danger: "#B3261E",
-  dangerPressed: "#8F1E18",
-  disabled: "#D8D3C8",
-  disabledText: "#8A8676",
-  bannerErrorBg: "#FBE9E7",
-  bannerErrorText: "#8F1E18",
-  bannerInfoBg: "#EAF0EC",
-  bannerInfoText: "#33402F",
-};
-
-const dark: ThemeColors = {
-  background: "#121210",
-  surface: "#1E1E1A",
-  surfaceSelected: "#22331F",
-  border: "#3A392F",
-  borderSelected: "#5FA968",
-  text: "#F2F1EA",
-  textMuted: "#B5B2A4",
-  textOnPrimary: "#0E1710",
-  primary: "#5FA968",
-  primaryPressed: "#4C8A54",
-  danger: "#E5766E",
-  dangerPressed: "#C25A52",
-  disabled: "#3A392F",
-  disabledText: "#7A7768",
-  bannerErrorBg: "#3A1F1B",
-  bannerErrorText: "#F3B4AD",
-  bannerInfoBg: "#233024",
-  bannerInfoText: "#D3DED0",
-};
-
+/**
+ * ÖVERGÅNG (sprint 6): de gamla färgnamnen mappas nu till Design
+ * Systemets tokens via temat i TemaContext.tsx, så att skärmar som inte
+ * hunnit skrivas om ändå följer Ljust/Mörkt/System. Ny kod använder
+ * useTema()/useFarger() och tokens-namnen direkt. Tas bort när alla
+ * skärmar är omskrivna.
+ */
 export function useThemeColors(): ThemeColors {
-  const scheme = useColorScheme();
-  return scheme === "dark" ? dark : light;
+  const f = useFarger();
+  return {
+    background: f.surface100,
+    surface: f.surface200,
+    surfaceSelected: f.brandSoft,
+    border: f.borderStrong,
+    borderSelected: f.brand,
+    text: f.ink,
+    textMuted: f.inkMuted,
+    textOnPrimary: f.onBrand,
+    primary: f.brand,
+    primaryPressed: f.brand,
+    danger: f.signal,
+    dangerPressed: f.signal,
+    disabled: f.surface300,
+    disabledText: f.inkMuted,
+    bannerErrorBg: f.surface200,
+    bannerErrorText: f.signal,
+    bannerInfoBg: f.brandSoft,
+    bannerInfoText: f.ink,
+  };
 }

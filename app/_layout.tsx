@@ -1,17 +1,38 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
+import {
+  useFonts,
+  SchibstedGrotesk_400Regular,
+  SchibstedGrotesk_500Medium,
+  SchibstedGrotesk_600SemiBold,
+  SchibstedGrotesk_700Bold,
+  SchibstedGrotesk_800ExtraBold,
+} from "@expo-google-fonts/schibsted-grotesk";
 import { getDatabase } from "@/db/client";
 import { hamtaEllerSkapaProfil } from "@/db/queries/profil";
 import type { Profil } from "@/db/types";
 import { ProfilProvider } from "@/contexts/ProfilContext";
 import { OnboardingScreen } from "@/screens/OnboardingScreen";
-import { useThemeColors } from "@/theme/colors";
+import {
+  TemaProvider,
+  laddaTemaInstallningar,
+  useSystemFarger,
+  useTema,
+} from "@/theme/TemaContext";
+import type { TemaVal, TimerTemaVal } from "@/theme/TemaContext";
+
+// Splashen ligger kvar tills typsnitt, tema-val och databas är laddade,
+// så att första bilden aldrig visas i fel typsnitt eller fel tema.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 /**
- * Rot-layout: initierar SQLite-databasen (öppnar anslutning, kör
- * migrations) och hämtar/skapar profilen innan några skärmar renderas.
- * Se src/db/client.ts och src/db/queries/profil.ts.
+ * Rot-layout: laddar Schibsted Grotesk, sparade tema-val och SQLite
+ * (öppnar anslutning, kör migrations, hämtar/skapar profilen) innan
+ * några skärmar renderas. Se src/db/client.ts, src/db/queries/profil.ts
+ * och src/theme/TemaContext.tsx.
  *
  * Tomt profilnamn = appen har aldrig körts klart genom onboardingen förut
  * (se OnboardingScreen). Så länge det är fallet renderas OnboardingScreen
@@ -19,41 +40,71 @@ import { useThemeColors } from "@/theme/colors";
  * så det inte finns någon navigationsväg runt den.
  */
 export default function RootLayout() {
-  const colors = useThemeColors();
-  const [databasKlar, setDatabasKlar] = useState(false);
+  const systemFarger = useSystemFarger();
+  const [fontLaddad, fontFel] = useFonts({
+    SchibstedGrotesk_400Regular,
+    SchibstedGrotesk_500Medium,
+    SchibstedGrotesk_600SemiBold,
+    SchibstedGrotesk_700Bold,
+    SchibstedGrotesk_800ExtraBold,
+  });
   const [profil, setProfil] = useState<Profil | null>(null);
+  const [tema, setTema] = useState<{
+    temaVal: TemaVal;
+    timerTemaVal: TimerTemaVal | null;
+  } | null>(null);
 
   useEffect(() => {
-    getDatabase()
-      .then((db) => hamtaEllerSkapaProfil(db))
-      .then((p) => {
-        setProfil(p);
-        setDatabasKlar(true);
-      });
+    // I tur och ordning, inte parallellt: på webben kraschar SQLite-motorn
+    // (wa-sqlite) om appens databas och inställningslagringen öppnas
+    // samtidigt ("reading 'xFileControl'").
+    (async () => {
+      const db = await getDatabase();
+      setProfil(await hamtaEllerSkapaProfil(db));
+      setTema(await laddaTemaInstallningar());
+    })();
   }, []);
 
-  if (!databasKlar || !profil) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: colors.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
+  // Ett fontfel får inte låsa appen - då används systemets sans.
+  const klar = (fontLaddad || !!fontFel) && profil !== null && tema !== null;
 
-  if (profil.namn.trim() === "") {
-    return <OnboardingScreen profil={profil} onKlar={setProfil} />;
+  useEffect(() => {
+    if (klar) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [klar]);
+
+  if (!klar) {
+    return <View style={{ flex: 1, backgroundColor: systemFarger.surface100 }} />;
   }
 
   return (
-    <ProfilProvider initialProfil={profil}>
-      <Stack screenOptions={{ headerShown: false }} />
-    </ProfilProvider>
+    <TemaProvider initial={tema}>
+      <TemaStatusBar />
+      {profil.namn.trim() === "" ? (
+        <OnboardingScreen profil={profil} onKlar={setProfil} />
+      ) : (
+        <ProfilProvider initialProfil={profil}>
+          <AppStack />
+        </ProfilProvider>
+      )}
+    </TemaProvider>
+  );
+}
+
+function TemaStatusBar() {
+  const { schema } = useTema();
+  return <StatusBar style={schema === "dark" ? "light" : "dark"} />;
+}
+
+function AppStack() {
+  const { farger } = useTema();
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: farger.surface100 },
+      }}
+    />
   );
 }
