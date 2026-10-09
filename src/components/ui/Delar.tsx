@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import type { StyleProp, TextInputProps, ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -45,6 +45,7 @@ export function Skarm({
           style={styles.fyll}
           contentContainerStyle={innehall}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           {children}
         </ScrollView>
@@ -258,13 +259,15 @@ export function VarningsChip({ text }: { text: string }) {
 export function Falt({
   etikett,
   style,
+  ref,
   ...rest
-}: TextInputProps & { etikett?: string }) {
+}: TextInputProps & { etikett?: string; ref?: Ref<TextInput> }) {
   const { farger } = useTema();
   return (
     <View style={styles.falt}>
       {etikett && <Txt variant="heading">{etikett}</Txt>}
       <TextInput
+        ref={ref}
         placeholderTextColor={farger.inkMuted}
         {...rest}
         style={[

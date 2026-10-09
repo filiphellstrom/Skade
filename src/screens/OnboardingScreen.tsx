@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
+import type { TextInput } from "react-native";
 import { getDatabase } from "@/db/client";
 import { hamtaEllerSkapaProfil, uppdateraProfilNamn } from "@/db/queries/profil";
 import { skapaHund } from "@/db/queries/hund";
@@ -36,6 +37,7 @@ interface OnboardingScreenProps {
  * funktionella introtexten ovanför och instruktionsraden nedanför.
  */
 export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
+  const hundFalt = useRef<TextInput>(null);
   const [namn, setNamn] = useState("");
   const [hundNamn, setHundNamn] = useState("");
   const [sparar, setSparar] = useState(false);
@@ -88,20 +90,27 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
           Innan du kör igång behöver vi ditt namn och namnet på din första hund.
         </Txt>
 
+        {/* Inget autoFocus: tangentbordet ska inte täcka introtexten och
+            Kom igång-knappen innan man själv trycker i ett fält. */}
         <Falt
           etikett="Ditt namn"
           value={namn}
           onChangeText={setNamn}
           placeholder="T.ex. Filip"
           autoCapitalize="words"
-          autoFocus
+          returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => hundFalt.current?.focus()}
         />
         <Falt
+          ref={hundFalt}
           etikett="Din hunds namn"
           value={hundNamn}
           onChangeText={setHundNamn}
           placeholder="T.ex. Aston"
           autoCapitalize="words"
+          returnKeyType="done"
+          onSubmitEditing={komIgang}
         />
 
         {fel && <InlineBanner text={fel} typ="error" />}
