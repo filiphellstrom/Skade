@@ -240,6 +240,8 @@ export default function RedigeraDrev() {
         </View>
       )}
 
+      <ChipSelect label="Viltart" options={VILTARTER} value={species} onChange={setSpecies} />
+      <ChipSelect label="Utfall" options={UTFALL} value={outcome} onChange={setOutcome} />
       <View>
         <Etikett>TID</Etikett>
         <Kort>
@@ -250,9 +252,6 @@ export default function RedigeraDrev() {
           </View>
         </Kort>
       </View>
-
-      <ChipSelect label="Viltart" options={VILTARTER} value={species} onChange={setSpecies} />
-      <ChipSelect label="Utfall" options={UTFALL} value={outcome} onChange={setOutcome} />
     </Skarm>
   );
 }

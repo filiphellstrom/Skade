@@ -27,9 +27,22 @@ export function ChipSelect({ label, options, value, onChange }: ChipSelectProps)
   const [visaAnnat, setVisaAnnat] = useState(value !== "" && !arFordefinierad);
   const [anpassadText, setAnpassadText] = useState(arFordefinierad ? "" : value);
 
+  // Tryck på det valda chipet igen tar bort valet (tom sträng sparas som
+  // NULL, se uppdateraDrev()). Samma för "Annat": andra trycket stänger
+  // fältet och rensar det egna värdet.
   const valjChip = (option: string) => {
     setVisaAnnat(false);
-    onChange(option);
+    onChange(value === option ? "" : option);
+  };
+
+  const vaxlaAnnat = () => {
+    if (visaAnnat) {
+      setVisaAnnat(false);
+      setAnpassadText("");
+      onChange("");
+    } else {
+      setVisaAnnat(true);
+    }
   };
 
   return (
@@ -39,7 +52,7 @@ export function ChipSelect({ label, options, value, onChange }: ChipSelectProps)
         {options.map((option) => (
           <ValChip key={option} titel={option} vald={value === option} onPress={() => valjChip(option)} />
         ))}
-        <ValChip titel="Annat" vald={visaAnnat} onPress={() => setVisaAnnat(true)} />
+        <ValChip titel="Annat" vald={visaAnnat} onPress={vaxlaAnnat} />
       </View>
 
       {visaAnnat && (
