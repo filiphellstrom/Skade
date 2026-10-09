@@ -96,11 +96,8 @@ export default function Hem() {
           setPagaende(p);
           setSenaste(avslutadeDagar.slice(0, 3));
           setLaddat(true);
-          const drevHund = p?.drev ? p.hundar.find((h) => h.id === p.drev?.hundId) : undefined;
-          void synkaLasskarm(
-            p?.drev ?? null,
-            p && drevHund ? { jaktmark: p.jaktdag.jaktmark, hundNamn: drevHund.namn } : undefined,
-          );
+          // Låsskärmskortet ska spegla databasen (src/liveActivity.ts).
+          void synkaLasskarm(profil.id);
         }
       })();
       return () => {
@@ -129,6 +126,8 @@ export default function Hem() {
       const db = await getDatabase();
       await avslutaJaktdag(db, pagaende.jaktdag.id);
       setPagaende(null);
+      // Jaktdagen är slut: kortet på låsskärmen ska bort.
+      void synkaLasskarm(profil.id);
       setSenaste(await hamtaAvslutadeJaktdagarForProfil(db, profil.id).then((r) => r.slice(0, 3)));
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte avsluta jaktdagen. Försök igen.");

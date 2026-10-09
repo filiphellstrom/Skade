@@ -1,0 +1,20 @@
+# Kompileringstest av iOS-appen på EAS - BYGGER BARA, laddar inte upp till
+# App Store Connect. Används för att testa native-kod (Swift i widgeten och
+# bryggmodulen) innan en release, eftersom Swift inte kan kompileras i
+# Claudes molnmiljö. Triggas av push till branchen `ios-test`:
+#   git push origin <branch>:ios-test
+# Räknas upp i buildnummer som vanliga byggen men når aldrig TestFlight.
+name: Test iOS (bara bygge)
+
+on:
+  push:
+    branches: ['ios-test']
+  workflow_dispatch: {}
+
+jobs:
+  build_ios:
+    name: Bygg iOS (test)
+    type: build
+    params:
+      platform: ios
+      profile: production
