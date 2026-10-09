@@ -18,6 +18,7 @@ import { InfoRow } from "@/components/InfoRow";
 import { InlineBanner } from "@/components/InlineBanner";
 import { formateraTid } from "@/hooks/useElapsedTime";
 import { useThemeColors } from "@/theme/colors";
+import { synkaLasskarm } from "@/liveActivity";
 
 /**
  * Huvudskärm (Sprint 2). Två lägen beroende på om profilen har en
@@ -84,6 +85,14 @@ export default function HuvudSkarm() {
           setPagaende(p);
           setHundar(h);
           setPagaendeDrev(drev);
+          // Låsskärmen ska spegla databasen (src/liveActivity.ts): avslutar
+          // en kvarliggande Live Activity om inget drev pågår, eller
+          // återskapar den om appen dödats mitt i ett drev.
+          const drevHund = drev ? h.find((x) => x.hundId === drev.hundId) : undefined;
+          void synkaLasskarm(
+            drev,
+            p && drevHund ? { jaktmark: p.jaktmark, hundNamn: drevHund.namn } : undefined,
+          );
         }
       })();
 
