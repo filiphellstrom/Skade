@@ -6,6 +6,8 @@ import WidgetKit
 /// löpande klocka. Klockan räknas av systemet (Text(timerInterval:)) från
 /// drevets starttid, så appen behöver inte uppdatera aktiviteten varje
 /// sekund - och klockan fortsätter gå även om appen är suspenderad.
+///
+/// Stoppknappen (iOS 17+) kör StoppaDrevIntent i _shared/.
 struct SkadeDrevLiveActivity: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: SkadeDrevAttributes.self) { context in
@@ -26,10 +28,14 @@ struct SkadeDrevLiveActivity: Widget {
             .frame(maxWidth: 110, alignment: .trailing)
         }
         DynamicIslandExpandedRegion(.bottom) {
-          Text(context.attributes.jaktmark)
-            .font(.subheadline)
-            .foregroundColor(.secondary)
-            .lineLimit(1)
+          HStack {
+            Text(context.attributes.jaktmark)
+              .font(.subheadline)
+              .foregroundColor(.secondary)
+              .lineLimit(1)
+            Spacer()
+            StoppKnapp(drevId: context.attributes.drevId)
+          }
         }
       } compactLeading: {
         Image(systemName: "pawprint.fill")
@@ -64,11 +70,32 @@ private struct SkadeLasskarmVy: View {
           .lineLimit(1)
       }
       Spacer(minLength: 8)
-      DrevKlocka(start: context.state.startTimestamp)
-        .font(.system(size: 34, weight: .semibold))
-        .foregroundColor(.white)
+      VStack(alignment: .trailing, spacing: 8) {
+        DrevKlocka(start: context.state.startTimestamp)
+          .font(.system(size: 34, weight: .semibold))
+          .foregroundColor(.white)
+        StoppKnapp(drevId: context.attributes.drevId)
+      }
     }
     .padding(16)
+  }
+}
+
+/// Stoppar drevet direkt från låsskärmen (iOS 17+). På iOS 16 visas
+/// kortet utan knapp - då stoppar man i appen som vanligt.
+private struct StoppKnapp: View {
+  let drevId: String
+
+  var body: some View {
+    if #available(iOS 17.0, *) {
+      Button(intent: StoppaDrevIntent(drevId: drevId)) {
+        Label("Stoppa", systemImage: "stop.fill")
+          .font(.headline)
+          .padding(.horizontal, 6)
+      }
+      .buttonStyle(.borderedProminent)
+      .tint(Color(red: 0.70, green: 0.15, blue: 0.12))
+    }
   }
 }
 

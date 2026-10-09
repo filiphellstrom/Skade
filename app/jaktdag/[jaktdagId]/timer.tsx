@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   ScrollView,
   StyleSheet,
   Text,
@@ -80,6 +81,20 @@ export default function Timer() {
   // app/index.tsx. Här betyder det bland annat att hundlistan för
   // byt-hund-läget är färsk om man t.ex. lagt till en hund på jaktdagen
   // från ett annat håll medan man var borta från timern.
+  // Ökas när appen kommer tillbaka till förgrunden, så att laddningen
+  // nedan körs om. Behövs för stoppknappen på låsskärmen: den stoppar
+  // drevet direkt i databasen medan appen ligger i bakgrunden, och
+  // useFocusEffect körs inte av att appen bara aktiveras igen.
+  const [forgrundRunda, setForgrundRunda] = useState(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        setForgrundRunda((n) => n + 1);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let avbruten = false;
@@ -113,7 +128,10 @@ export default function Timer() {
       return () => {
         avbruten = true;
       };
-    }, [jaktdagId]),
+      // forgrundRunda används inte i kroppen - den finns med just för att
+      // trigga omladdning när appen aktiveras (se ovan).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [jaktdagId, forgrundRunda]),
   );
 
   const elapsed = useElapsedTime(pagaendeDrev?.startTimestamp ?? null);

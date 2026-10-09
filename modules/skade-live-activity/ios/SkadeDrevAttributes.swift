@@ -4,10 +4,9 @@ import Foundation
 /// Datan en Skade-Live Activity bär med sig.
 ///
 /// OBS: exakt samma struct finns i
-/// targets/widget/SkadeDrevAttributes.swift (widget-extensionens sida,
-/// som ritar låsskärmen). ActivityKit matchar de två på
+/// targets/widget/_shared/SkadeDrevAttributes.swift (widget-extensionen
+/// och huvudappen). ActivityKit matchar de två på
 /// typnamn och fält, så de MÅSTE hållas identiska - ändra båda samtidigt.
-/// (@available behövs bara här: modulen byggs för iOS 15.1, widgeten för 16.2.)
 @available(iOS 16.1, *)
 struct SkadeDrevAttributes: ActivityAttributes {
   public struct ContentState: Codable, Hashable {

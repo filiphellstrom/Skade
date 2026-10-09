@@ -3,10 +3,13 @@ import Foundation
 
 /// Datan en Skade-Live Activity bär med sig.
 ///
-/// OBS: exakt samma struct finns i
-/// modules/skade-live-activity/ios/SkadeDrevAttributes.swift (appens sida,
-/// som startar/avslutar aktiviteten). ActivityKit matchar de två på
-/// typnamn och fält, så de MÅSTE hållas identiska - ändra båda samtidigt.
+/// Ligger i targets/widget/_shared/ och kompileras därför in i BÅDE
+/// widget-extensionen (som ritar låsskärmen) och huvudappen (där
+/// StoppaDrevIntent körs). En tredje kopia finns i
+/// modules/skade-live-activity/ios/SkadeDrevAttributes.swift (bryggmodulen
+/// som startar/avslutar aktiviteten från JS). ActivityKit matchar dem på
+/// typnamn och fält, så de MÅSTE hållas identiska - ändra alla samtidigt.
+@available(iOS 16.1, *)
 struct SkadeDrevAttributes: ActivityAttributes {
   public struct ContentState: Codable, Hashable {
     /// Hunden som driver just nu.

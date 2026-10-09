@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   ScrollView,
   StyleSheet,
   Text,
@@ -70,6 +71,18 @@ export default function HuvudSkarm() {
   const [avslutar, setAvslutar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
 
+  // Ladda om när appen aktiveras igen - ett drev kan ha stoppats från
+  // låsskärmen (Live Activity) medan appen låg i bakgrunden.
+  const [forgrundRunda, setForgrundRunda] = useState(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        setForgrundRunda((n) => n + 1);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let avbruten = false;
@@ -99,7 +112,9 @@ export default function HuvudSkarm() {
       return () => {
         avbruten = true;
       };
-    }, [profil.id]),
+      // forgrundRunda triggar bara omladdning (se ovan).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profil.id, forgrundRunda]),
   );
 
   const fortsattJaktdag = () => {
