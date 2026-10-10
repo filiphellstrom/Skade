@@ -16,6 +16,7 @@ import { hamtaEllerSkapaProfil } from "@/db/queries/profil";
 import type { Profil } from "@/db/types";
 import { ProfilProvider } from "@/contexts/ProfilContext";
 import { OnboardingScreen } from "@/screens/OnboardingScreen";
+import { SidMinne, laddaSenasteSida } from "@/hooks/senasteSida";
 import {
   TemaProvider,
   laddaTemaInstallningar,
@@ -53,6 +54,8 @@ export default function RootLayout() {
     temaVal: TemaVal;
     timerTemaVal: TimerTemaVal | null;
   } | null>(null);
+  // undefined = inte laddad än, null = starta på Hem (src/hooks/senasteSida.tsx).
+  const [startsida, setStartsida] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     // I tur och ordning, inte parallellt: på webben kraschar SQLite-motorn
@@ -62,11 +65,13 @@ export default function RootLayout() {
       const db = await getDatabase();
       setProfil(await hamtaEllerSkapaProfil(db));
       setTema(await laddaTemaInstallningar());
+      setStartsida(await laddaSenasteSida(db));
     })();
   }, []);
 
   // Ett fontfel får inte låsa appen - då används systemets sans.
-  const klar = (fontLaddad || !!fontFel) && profil !== null && tema !== null;
+  const klar =
+    (fontLaddad || !!fontFel) && profil !== null && tema !== null && startsida !== undefined;
 
   useEffect(() => {
     if (klar) {
@@ -85,7 +90,7 @@ export default function RootLayout() {
         <OnboardingScreen profil={profil} onKlar={setProfil} />
       ) : (
         <ProfilProvider initialProfil={profil}>
-          <AppStack />
+          <AppStack startsida={startsida ?? null} />
         </ProfilProvider>
       )}
     </TemaProvider>
@@ -97,14 +102,17 @@ function TemaStatusBar() {
   return <StatusBar style={schema === "dark" ? "light" : "dark"} />;
 }
 
-function AppStack() {
+function AppStack({ startsida }: { startsida: string | null }) {
   const { farger } = useTema();
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: farger.surface100 },
-      }}
-    />
+    <>
+      <SidMinne startsida={startsida} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: farger.surface100 },
+        }}
+      />
+    </>
   );
 }

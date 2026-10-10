@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Platform, useColorScheme } from "react-native";
-import Storage from "expo-sqlite/kv-store";
+import { useColorScheme } from "react-native";
+import { lasSakert, sparaSakert } from "@/utils/lagring";
 import { FARGER, KORT_SKUGGA } from "./tokens";
 import type { Farger, Schema } from "./tokens";
 
@@ -47,45 +47,12 @@ function arTimerTemaVal(v: string | null): v is TimerTemaVal {
   return v === "ljust" || v === "morkt";
 }
 
-/**
- * På webben används webbläsarens localStorage i stället för kv-store:
- * wa-sqlite (SQLite på webben) kraschar om två databaser används
- * samtidigt, och kv-store är en egen databas bredvid skade.db.
- */
-async function lasSakert(nyckel: string): Promise<string | null> {
-  try {
-    if (Platform.OS === "web") {
-      return globalThis.localStorage?.getItem(nyckel) ?? null;
-    }
-    return await Storage.getItem(nyckel);
-  } catch {
-    return null;
-  }
-}
-
-function sparaSakert(nyckel: string, varde: string): void {
-  try {
-    if (Platform.OS === "web") {
-      globalThis.localStorage?.setItem(nyckel, varde);
-      return;
-    }
-    Storage.setItem(nyckel, varde).catch((e) => {
-      console.warn(`[tema] kunde inte spara ${nyckel}`, e);
-    });
-  } catch (e) {
-    console.warn(`[tema] kunde inte spara ${nyckel}`, e);
-  }
-}
-
 /** Läser sparade val innan appen visas, så att första bilden har rätt tema. */
 export async function laddaTemaInstallningar(): Promise<{
   temaVal: TemaVal;
   timerTemaVal: TimerTemaVal | null;
 }> {
-  const [t, tt] = await Promise.all([
-    lasSakert(NYCKEL_TEMA),
-    lasSakert(NYCKEL_TIMER_TEMA),
-  ]);
+  const [t, tt] = await Promise.all([lasSakert(NYCKEL_TEMA), lasSakert(NYCKEL_TIMER_TEMA)]);
   return {
     temaVal: arTemaVal(t) ? t : "system",
     timerTemaVal: arTimerTemaVal(tt) ? tt : null,
@@ -101,9 +68,7 @@ export function TemaProvider({
 }) {
   const system = useColorScheme();
   const [temaVal, setTemaState] = useState<TemaVal>(initial.temaVal);
-  const [timerTemaVal, setTimerState] = useState<TimerTemaVal | null>(
-    initial.timerTemaVal,
-  );
+  const [timerTemaVal, setTimerState] = useState<TimerTemaVal | null>(initial.timerTemaVal);
 
   const setTemaVal = useCallback((val: TemaVal) => {
     setTemaState(val);
