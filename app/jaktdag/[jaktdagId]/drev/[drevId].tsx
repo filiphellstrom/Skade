@@ -206,6 +206,7 @@ export default function RedigeraDrev() {
           <Knapp
             titel="Radera drev"
             variant="faraLiten"
+            fullBredd
             onPress={() => setVisaRaderaBekraftelse(true)}
             laddar={raderar}
           />
@@ -266,8 +267,8 @@ export default function RedigeraDrev() {
 const styles = StyleSheet.create({
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
   undertitel: { marginTop: avstand.s1 },
-  // Hoppa över/Avbryt i full bredd, Radera drev mindre på raden under
-  // (Filip 2026-10-10, som före designlyftet).
+  // Hoppa över/Avbryt överst, Radera drev på raden under - båda i full
+  // bredd, Radera drev med halv höjd (Filip 2026-10-10).
   toppKnappar: { gap: avstand.s3 },
   block: { gap: avstand.s2 },
   sidfot: { gap: avstand.s2 },
