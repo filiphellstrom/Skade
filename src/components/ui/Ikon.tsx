@@ -24,7 +24,11 @@ export type IkonNamn =
   | "sol"
   | "varning"
   | "bock"
-  | "dela";
+  | "dela"
+  | "kamera"
+  | "dokument"
+  | "klocka"
+  | "kalender";
 
 interface Props {
   namn: IkonNamn;
@@ -105,6 +109,30 @@ const INNEHALL: Record<IkonNamn, ReactNode> = {
       <Path d="M12 3v12" />
       <Path d="M7.5 7.5L12 3l4.5 4.5" />
       <Path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+    </>
+  ),
+  kamera: (
+    <>
+      <Path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" />
+      <Circle cx="12" cy="13" r="3.5" />
+    </>
+  ),
+  dokument: (
+    <>
+      <Path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+      <Path d="M14 3v5h5M9 13h6M9 17h6" />
+    </>
+  ),
+  klocka: (
+    <>
+      <Circle cx="12" cy="12" r="9" />
+      <Path d="M12 7v5l3 2" />
+    </>
+  ),
+  kalender: (
+    <>
+      <Rect x="4" y="5" width="16" height="15" rx="2" />
+      <Path d="M4 10h16M9 3v4M15 3v4" />
     </>
   ),
 };

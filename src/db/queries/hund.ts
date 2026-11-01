@@ -39,6 +39,7 @@ export async function skapaHund(
     fodelsedatum: params.fodelsedatum ?? null,
     kommentar: params.kommentar ?? null,
     arkiverad: 0,
+    bild: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -86,6 +87,16 @@ export async function uppdateraHund(
      WHERE id = ?`,
     [params.namn, params.ras, params.fodelsedatum, params.kommentar, now, hundId],
   );
+}
+
+/** Sätter eller tar bort (null) hundens bild. Den gamla filen tas bort av anroparen. */
+export async function uppdateraHundBild(
+  db: SQLiteDatabase,
+  hundId: Uuid,
+  bild: string | null,
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await db.runAsync("UPDATE Hund SET bild = ?, updatedAt = ? WHERE id = ?", [bild, now, hundId]);
 }
 
 /**

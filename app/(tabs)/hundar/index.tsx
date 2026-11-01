@@ -106,6 +106,7 @@ export default function Hundar() {
                 key={h.id}
                 forsta={i === 0}
                 titel={h.namn}
+                avatar={{ bild: h.bild, namn: h.namn }}
                 undertitel={[h.ras, alder(h.fodelsedatum)].filter(Boolean).join(" · ") || undefined}
                 hoger={pagar ? "Drev pågår" : t ? formateraVaraktighet(t.tid) : "Inga drev än"}
                 hogerFarg={pagar ? "brand" : t ? "ink" : "inkMuted"}

@@ -104,7 +104,14 @@ export default function Installningar() {
       <View>
         <Etikett>OM SKADE</Etikett>
         <Kort lista>
-          <Listrad forsta titel="Ditt namn" hoger={profil.namn} hogerFarg="inkMuted" hojd={56} />
+          <Listrad
+            forsta
+            titel="Profil och dokument"
+            hoger={profil.namn}
+            hogerFarg="inkMuted"
+            hojd={56}
+            onPress={() => router.push("/profil")}
+          />
           <Listrad
             titel="Integritet"
             hoger="Läs policyn"

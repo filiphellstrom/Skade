@@ -17,6 +17,7 @@ import type { Profil } from "@/db/types";
 import { ProfilProvider } from "@/contexts/ProfilContext";
 import { OnboardingScreen } from "@/screens/OnboardingScreen";
 import { SidMinne, laddaSenasteSida } from "@/hooks/senasteSida";
+import { PaminnelseNavigering } from "@/utils/paminnelser";
 import {
   TemaProvider,
   laddaTemaInstallningar,
@@ -107,6 +108,7 @@ function AppStack({ startsida }: { startsida: string | null }) {
   return (
     <>
       <SidMinne startsida={startsida} />
+      <PaminnelseNavigering />
       <Stack
         screenOptions={{
           headerShown: false,

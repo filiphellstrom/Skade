@@ -213,11 +213,14 @@ export function ValChip({
   vald,
   onPress,
   hojd = tryck.min,
+  fyll = false,
 }: {
   titel: string;
   vald: boolean;
   onPress: () => void;
   hojd?: number;
+  /** Fyller sin plats med centrerad text och mindre sidmarginal (t.ex. 7/30/60 dagar). */
+  fyll?: boolean;
 }) {
   const { farger } = useTema();
   return (
@@ -227,6 +230,7 @@ export function ValChip({
       onPress={onPress}
       style={({ pressed }) => [
         styles.chip,
+        fyll && styles.chipFyll,
         {
           minHeight: hojd,
           backgroundColor: vald ? farger.brandSoft : farger.surface300,
@@ -349,6 +353,7 @@ const styles = StyleSheet.create({
     borderRadius: radie.sm,
     borderWidth: 2,
   },
+  chipFyll: { paddingHorizontal: avstand.s2, alignItems: "center" },
   chipTextLiten: { fontSize: 15, lineHeight: 20 },
   varning: {
     alignSelf: "flex-start",

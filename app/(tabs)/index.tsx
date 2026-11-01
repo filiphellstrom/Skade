@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, AppState, StyleSheet, View } from "react-native";
+import { ActivityIndicator, AppState, Pressable, StyleSheet, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { avslutaJaktdag, hamtaPagaendeJaktdag } from "@/db/queries/jaktdag";
@@ -9,7 +9,8 @@ import {
   hamtaAvslutadeJaktdagarForProfil,
   hamtaDrevMedHundnamnForJaktdag,
 } from "@/db/queries/statistik";
-import type { Drev, Hund, Jaktdag, JaktdagMedSummering } from "@/db/types";
+import { hamtaDokumentForProfil } from "@/db/queries/dokument";
+import type { Dokument, Drev, Hund, Jaktdag, JaktdagMedSummering } from "@/db/types";
 import { useProfil } from "@/contexts/ProfilContext";
 import { synkaLasskarm } from "@/liveActivity";
 import { useFarger } from "@/theme/TemaContext";
@@ -18,6 +19,9 @@ import { Knapp } from "@/components/ui/Knapp";
 import { Kort, Listrad } from "@/components/ui/Kort";
 import { Etikett, Felrad, IkonKnapp, Skarm } from "@/components/ui/Delar";
 import { Txt } from "@/components/ui/Txt";
+import { Avatar } from "@/components/ui/Avatar";
+import { DokumentStatusChip } from "@/components/DokumentStatusChip";
+import { dokumentStatus } from "@/utils/dokumentStatus";
 import { antalDrevText, formateraDag, formateraVaraktighet, listaNamn } from "@/utils/format";
 
 /**
@@ -36,6 +40,10 @@ import { antalDrevText, formateraDag, formateraVaraktighet, listaNamn } from "@/
  * tryck för att öppna dem i Historik-fliken.
  *
  * Hundlistan som låg här tidigare finns nu i Hundar-fliken.
+ *
+ * 2026-11-01: profilknapp (rund bild eller initial) bredvid kugghjulet,
+ * och ett varningskort överst när ett dokument på profilen går ut inom
+ * sin påminnelsetid eller redan har gått ut.
  *
  * Datan hämtas om vid varje fokus och när appen aktiveras igen (ett drev
  * kan ha stoppats från låsskärmen). Låsskärmen (Live Activity) synkas mot
@@ -56,6 +64,7 @@ export default function Hem() {
   const [laddat, setLaddat] = useState(false);
   const [pagaende, setPagaende] = useState<Pagaende | null>(null);
   const [senaste, setSenaste] = useState<JaktdagMedSummering[]>([]);
+  const [varnaDokument, setVarnaDokument] = useState<Dokument[]>([]);
   const [avslutar, setAvslutar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
 
@@ -92,7 +101,9 @@ export default function Hem() {
           };
         }
         const avslutadeDagar = await hamtaAvslutadeJaktdagarForProfil(db, profil.id);
+        const dok = await hamtaDokumentForProfil(db, profil.id);
         if (!avbruten) {
+          setVarnaDokument(dok.filter((d) => ["snart", "utgatt"].includes(dokumentStatus(d).typ)));
           setPagaende(p);
           setSenaste(avslutadeDagar.slice(0, 3));
           setLaddat(true);
@@ -165,12 +176,42 @@ export default function Hem() {
             Hej {profil.namn}. Din jaktdagbok för drivande hund.
           </Txt>
         </View>
-        <IkonKnapp
-          ikon="installningar"
-          etikett="Inställningar"
-          onPress={() => router.push("/installningar")}
-        />
+        <View style={styles.toppKnappar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Profil och dokument"
+            onPress={() => router.push("/profil")}
+            hitSlop={4}
+            style={({ pressed }) => ({ opacity: pressed ? 0.82 : 1 })}
+          >
+            <Avatar bild={profil.bild} namn={profil.namn} storlek={48} />
+          </Pressable>
+          <IkonKnapp
+            ikon="installningar"
+            etikett="Inställningar"
+            onPress={() => router.push("/installningar")}
+          />
+        </View>
       </View>
+
+      {varnaDokument.length > 0 && (
+        <Kort lista>
+          {varnaDokument.map((d, i) => {
+            const st = dokumentStatus(d);
+            return (
+              <Listrad
+                key={d.id}
+                forsta={i === 0}
+                ikon="dokument"
+                titel={d.namn}
+                extra={<DokumentStatusChip status={st.typ} text={st.text} />}
+                accessibilityLabel={`${d.namn}, ${st.text}. Öppna dokumentet`}
+                onPress={() => router.push(`/profil/dokument/${d.id}`)}
+              />
+            );
+          })}
+        </Kort>
+      )}
 
       {pagaende ? (
         <Kort variant="pagaende">
@@ -240,6 +281,7 @@ const styles = StyleSheet.create({
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
   flex1: { flex: 1 },
   topp: { flexDirection: "row", alignItems: "flex-start", gap: avstand.s3 },
+  toppKnappar: { flexDirection: "row", gap: avstand.s2 },
   halsning: { marginTop: avstand.s2 },
   sammanfattning: { marginTop: avstand.s1 },
   knappar: { marginTop: avstand.s4, gap: avstand.s3 },

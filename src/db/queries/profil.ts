@@ -37,6 +37,7 @@ export async function hamtaEllerSkapaProfil(
     id,
     namn: "",
     mailadress: null,
+    bild: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -59,4 +60,27 @@ export async function uppdateraProfilNamn(
     now,
     profilId,
   ]);
+}
+
+/** Namn och e-post från Profil-skärmen (app/profil/index.tsx). */
+export async function uppdateraProfil(
+  db: SQLiteDatabase,
+  profilId: Uuid,
+  params: { namn: string; mailadress: string | null },
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await db.runAsync(
+    "UPDATE Profil SET namn = ?, mailadress = ?, updatedAt = ? WHERE id = ?",
+    [params.namn, params.mailadress, now, profilId],
+  );
+}
+
+/** Sätter eller tar bort (null) profilbilden. Den gamla filen tas bort av anroparen. */
+export async function uppdateraProfilBild(
+  db: SQLiteDatabase,
+  profilId: Uuid,
+  bild: string | null,
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await db.runAsync("UPDATE Profil SET bild = ?, updatedAt = ? WHERE id = ?", [bild, now, profilId]);
 }

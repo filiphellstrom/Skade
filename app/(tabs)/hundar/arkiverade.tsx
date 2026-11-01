@@ -72,6 +72,7 @@ export default function ArkiveradeHundar() {
               key={h.id}
               forsta={i === 0}
               titel={h.namn}
+              avatar={{ bild: h.bild, namn: h.namn }}
               undertitel={h.ras ?? undefined}
               onPress={() => router.push(`/hundar/${h.id}`)}
             />

@@ -1,9 +1,9 @@
 import { StyleSheet, View } from "react-native";
 import { ValChip } from "@/components/ui/Delar";
-import { Txt } from "@/components/ui/Txt";
 import { avstand } from "@/theme/tokens";
 import { Stegare } from "@/components/Stegare";
-import { DatumField } from "@/components/DatumField";
+import { DatumRad } from "@/components/HjulVal";
+import { Kort } from "@/components/ui/Kort";
 import type { HistorikPeriod } from "@/utils/period";
 
 interface PeriodFilterProps {
@@ -27,7 +27,7 @@ function standardIntervallSlut(): number {
 /**
  * Periodfilter för historiken (app/historik/index.tsx) och statistiken
  * (app/historik/statistik.tsx) - "Allt"/"Helår"/"Intervall" som chips,
- * med en år-steppare respektive två DatumField (Från/Till) som fälls ut
+ * med en år-steppare respektive Från/Till i ett listkort (Apples datumhjul, 2026-11-01) som fälls ut
  * beroende på val. Varje skärm äger sitt eget filter-state lokalt (inte
  * delat mellan skärmarna) - se motivering i respektive skärms kommentar.
  */
@@ -68,22 +68,24 @@ export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
       )}
 
       {value.typ === "intervall" && (
-        <View style={styles.intervallBlock}>
-          <View style={styles.datumFalt}>
-            <Txt variant="caption" farg="inkMuted">Från</Txt>
-            <DatumField
-              value={value.start}
-              onChange={(start) => onChange({ typ: "intervall", start, slut: value.slut })}
-            />
-          </View>
-          <View style={styles.datumFalt}>
-            <Txt variant="caption" farg="inkMuted">Till</Txt>
-            <DatumField
-              value={value.slut}
-              onChange={(slut) => onChange({ typ: "intervall", start: value.start, slut })}
-            />
-          </View>
-        </View>
+        <Kort lista>
+          <DatumRad
+            iKort
+            forsta
+            titel="Från"
+            varde={value.start}
+            max={value.slut}
+            onChange={(start) => onChange({ typ: "intervall", start, slut: value.slut })}
+          />
+          <DatumRad
+            iKort
+            forsta={false}
+            titel="Till"
+            varde={value.slut}
+            min={value.start}
+            onChange={(slut) => onChange({ typ: "intervall", start: value.start, slut })}
+          />
+        </Kort>
       )}
     </View>
   );
@@ -100,6 +102,4 @@ function TypChip({ label, vald, onPress }: { label: string; vald: boolean; onPre
 const styles = StyleSheet.create({
   block: { gap: avstand.s3 },
   chipRad: { flexDirection: "row", flexWrap: "wrap", gap: avstand.s2 },
-  intervallBlock: { gap: avstand.s3 },
-  datumFalt: { gap: avstand.s1 },
 });

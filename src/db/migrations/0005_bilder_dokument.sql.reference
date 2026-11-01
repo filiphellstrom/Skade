@@ -1,0 +1,18 @@
+ALTER TABLE Profil ADD COLUMN bild TEXT;
+ALTER TABLE Hund ADD COLUMN bild TEXT;
+
+CREATE TABLE Dokument (
+  id TEXT PRIMARY KEY,
+  profilId TEXT NOT NULL REFERENCES Profil(id),
+  typ TEXT NOT NULL CHECK (typ IN ('jagarexamen', 'vapenlicens', 'forsakring', 'ovrigt')),
+  namn TEXT NOT NULL,
+  fil TEXT,
+  filtyp TEXT CHECK (filtyp IS NULL OR filtyp IN ('bild', 'pdf')),
+  giltigTill INTEGER,
+  paminnelseDagar INTEGER NOT NULL DEFAULT 30,
+  notisId TEXT,
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+
+CREATE INDEX idx_dokument_profil ON Dokument(profilId);

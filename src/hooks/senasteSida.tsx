@@ -75,6 +75,9 @@ async function finnsFortfarande(db: SQLiteDatabase, sokvag: string): Promise<boo
       );
     case "jaktmarker":
       return !id || id === "ny" || finns(db, "SELECT 1 FROM Jaktmark WHERE id = ?", id);
+    case "profil":
+      // /profil eller /profil/dokument/<id|ny>
+      return !id || !tredje || tredje === "ny" || finns(db, "SELECT 1 FROM Dokument WHERE id = ?", tredje);
     case "installningar":
     case "hjalp":
       return true;

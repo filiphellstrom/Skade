@@ -26,7 +26,16 @@
       "expo-router",
       "expo-sqlite",
       "@bacons/apple-targets",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Skade använder dina bilder när du väljer en profilbild, en bild på din hund eller en bild av ett dokument.",
+          "cameraPermission": "Skade använder kameran när du fotograferar din hund eller ett dokument, till exempel din vapenlicens.",
+          "microphonePermission": false
+        }
+      ],
+      "./plugins/utan-push.js"
     ],
     "experiments": {
       "typedRoutes": true

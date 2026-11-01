@@ -9,9 +9,13 @@ import {
   hamtaHundHarHistorik,
   raderaHund,
   uppdateraHund,
+  uppdateraHundBild,
 } from "@/db/queries/hund";
 import type { Hund, UnixTimestamp } from "@/db/types";
 import { BirthDateField } from "@/components/BirthDateField";
+import { BildVal } from "@/components/BildVal";
+import { Avatar } from "@/components/ui/Avatar";
+import { taBortFil } from "@/utils/filer";
 import { InlineBanner } from "@/components/InlineBanner";
 import { useFarger } from "@/theme/TemaContext";
 import { avstand } from "@/theme/tokens";
@@ -70,6 +74,7 @@ export default function RedigeraHund() {
   const [visaArkiveraBekraftelse, setVisaArkiveraBekraftelse] = useState(false);
   const [visaRaderaBekraftelse, setVisaRaderaBekraftelse] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
+  const [bildVal, setBildVal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -182,6 +187,17 @@ export default function RedigeraHund() {
     }
   };
 
+  /** Bilden sparas direkt (inte via Spara ändringar), som arkivering. */
+  const sattBild = async (bild: string | null) => {
+    if (!hund) {
+      return;
+    }
+    const db = await getDatabase();
+    await uppdateraHundBild(db, hundId, bild);
+    taBortFil(hund.bild);
+    setHund({ ...hund, bild });
+  };
+
   const bekraftaRadering = async () => {
     if (raderar) {
       return;
@@ -191,6 +207,7 @@ export default function RedigeraHund() {
     try {
       const db = await getDatabase();
       await raderaHund(db, hundId);
+      taBortFil(hund?.bild);
       tillbaka();
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte radera hunden.");
@@ -218,6 +235,11 @@ export default function RedigeraHund() {
           <Txt variant="title1" accessibilityRole="header">
             {hund.namn}
           </Txt>
+        </View>
+
+        <View style={styles.bild}>
+          <Avatar bild={hund.bild} namn={namn || hund.namn} storlek={112} onByt={() => setBildVal(true)} />
+          <Knapp variant="text" titel={hund.bild ? "Byt bild" : "Lägg till bild"} onPress={() => setBildVal(true)} style={styles.centrerad} />
         </View>
 
         {hund.arkiverad === 1 && <InlineBanner text="Den här hunden är arkiverad." typ="info" />}
@@ -289,6 +311,15 @@ export default function RedigeraHund() {
           )}
         </View>
       </Skarm>
+      <BildVal
+        oppen={bildVal}
+        titel={`Bild på ${hund.namn}`}
+        prefix="hund"
+        harBild={!!hund.bild}
+        onNy={sattBild}
+        onTaBort={() => sattBild(null)}
+        onStang={() => setBildVal(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -297,6 +328,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
   topp: { gap: avstand.s4 },
+  bild: { alignItems: "center", gap: avstand.s1 },
+  centrerad: { alignSelf: "center" },
   falt: { gap: avstand.s2 },
   inputMultiline: { minHeight: 96, paddingTop: avstand.s3, textAlignVertical: "top" },
   knappblock: { gap: avstand.s3 },

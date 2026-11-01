@@ -26,6 +26,8 @@ export interface Profil {
   id: Uuid;
   namn: string;
   mailadress: string | null;
+  /** Migration 0005. Filnamn i appens filmapp (data:-URL på webben), se src/utils/filer.ts. */
+  bild: string | null;
   createdAt: UnixTimestamp;
   updatedAt: UnixTimestamp;
 }
@@ -39,6 +41,8 @@ export interface Hund {
   kommentar: string | null;
   /** Migration 0002. 0 = aktiv, 1 = arkiverad (dold från vanliga listor, historik orörd). */
   arkiverad: 0 | 1;
+  /** Migration 0005. Filnamn i appens filmapp (data:-URL på webben), se src/utils/filer.ts. */
+  bild: string | null;
   createdAt: UnixTimestamp;
   updatedAt: UnixTimestamp;
 }
@@ -153,4 +157,25 @@ export interface HundStatistik {
   totalDrevtid: number;
   viltartFordelning: Fordelningspost[];
   utfallFordelning: Fordelningspost[];
+}
+
+/** Migration 0005: dokument på profilen. */
+export type DokumentTyp = "jagarexamen" | "vapenlicens" | "forsakring" | "ovrigt";
+export type DokumentFiltyp = "bild" | "pdf";
+
+export interface Dokument {
+  id: Uuid;
+  profilId: Uuid;
+  typ: DokumentTyp;
+  namn: string;
+  /** Filnamn i appens filmapp (data:-URL på webben), NULL = ingen fil än. */
+  fil: string | null;
+  filtyp: DokumentFiltyp | null;
+  /** Lokal midnatt sista giltiga dag. NULL = inget slutdatum. */
+  giltigTill: UnixTimestamp | null;
+  /** 7, 30 eller 60. */
+  paminnelseDagar: number;
+  notisId: string | null;
+  createdAt: UnixTimestamp;
+  updatedAt: UnixTimestamp;
 }

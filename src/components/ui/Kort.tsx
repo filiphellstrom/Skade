@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import { useTema } from "@/theme/TemaContext";
 import { avstand, radie, tryck } from "@/theme/tokens";
+import { Avatar } from "./Avatar";
 import { Ikon } from "./Ikon";
 import { Txt } from "./Txt";
 
@@ -56,7 +57,9 @@ interface ListradProps {
   hogerUnder?: string;
   hogerFarg?: "ink" | "brand" | "inkMuted";
   /** Ikon i en mjuk grön ruta till vänster (t.ex. jaktmarker). */
-  ikon?: "jaktmark" | "hund";
+  ikon?: "jaktmark" | "hund" | "dokument";
+  /** Rund bild till vänster (hundlistan), initial om bild saknas. */
+  avatar?: { bild: string | null; namn: string };
   forsta?: boolean;
   onPress?: () => void;
   hojd?: number;
@@ -71,6 +74,7 @@ export function Listrad({
   hogerUnder,
   hogerFarg = "ink",
   ikon,
+  avatar,
   forsta = false,
   onPress,
   hojd,
@@ -80,6 +84,7 @@ export function Listrad({
   const innehall = (
     <>
       <View style={styles.vanster}>
+        {avatar && <Avatar bild={avatar.bild} namn={avatar.namn} storlek={48} />}
         {ikon && (
           <View style={[styles.ikonRuta, { backgroundColor: farger.brandSoft }]}>
             <Ikon namn={ikon} farg={farger.brand} storlek={22} />

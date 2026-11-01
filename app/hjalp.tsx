@@ -69,7 +69,7 @@ const JAKTDAGEN: Amne[] = [
     stycken: [
       "När du stoppar ett drev kan du ange viltart och utfall direkt. Tryck på ett valt alternativ igen för att ta bort valet.",
       "Finns inte viltet i listan trycker du Eget och skriver det själv.",
-      "Under Tid kan du justera start- och sluttid om du tryckte lite sent. Tryck på Start eller Slut och rulla hjulen för timme och minut, och tryck Klar. Tryck sedan Spara.",
+      "Under Tid kan du justera start- och sluttid om du tryckte lite sent. Tryck på Start eller Slut, rulla hjulen för timme och minut (telefonen ger ett litet klick för varje steg) och tryck Klar. Tryck sedan Spara.",
       "Har du inte tid trycker du Hoppa över. Drevet är redan sparat, och du kan fylla i resten senare från Historik.",
       "Radera drev tar bort drevet helt, efter en bekräftelse. Knappen är medvetet liten så att man inte trycker på den av misstag.",
     ],
@@ -105,7 +105,7 @@ const OVRIGT: Amne[] = [
   {
     titel: "Hundar",
     stycken: [
-      "Fliken Hundar visar dina hundar med total drevtid och antal drev. Tryck på en hund för att ändra namn, ras, födelsedatum och kommentar.",
+      "Fliken Hundar visar dina hundar med bild, total drevtid och antal drev. Tryck på en hund för att ändra namn, ras, födelsedatum och kommentar, eller för att lägga till en bild (Ta bild eller Välj bild).",
       "Lägg till hund finns uppe till höger.",
       "Arkivera hund döljer en hund som inte längre jagar men behåller all historik. Arkiverade hundar finns under Visa arkiverade hundar och kan återställas.",
       "Radera hund tar bort hunden och, efter en bekräftelse, all dess historik permanent.",
@@ -117,6 +117,15 @@ const OVRIGT: Amne[] = [
       "Fliken Jaktmarker visar varje jaktmark med antal jaktdagar, senaste jaktdag och total drevtid.",
       "Du kan lägga till en jaktmark i förväg med Lägg till, och döpa om en jaktmark genom att trycka på den. Det nya namnet syns på alla jaktdagar som hör till marken.",
       "Jaktmarker skapas också automatiskt när du skriver ett nytt namn vid Ny jaktdag.",
+    ],
+  },
+  {
+    titel: "Profil och dokument",
+    stycken: [
+      "Tryck på den runda profilbilden uppe till höger på Hem för att öppna din profil. Där byter du profilbild, namn och e-post.",
+      "Under Dokument sparar du en bild eller PDF av till exempel jägarexamen, vapenlicens eller försäkring, så att du alltid har dem med dig. Tryck på bilden för att se den i helskärm.",
+      "Ange Giltigt till så får du en påminnelse på telefonen 7, 30 eller 60 dagar innan dokumentet går ut, klockan 09:00. Går ett dokument ut snart, eller har det redan gått ut, syns det också överst på Hem.",
+      "Dokumenten sparas bara på den här telefonen och delas aldrig. Kopiorna ersätter inte originalen.",
     ],
   },
   {
