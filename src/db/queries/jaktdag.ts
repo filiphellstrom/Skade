@@ -127,3 +127,35 @@ export async function avslutaJaktdag(
     [now, now, jaktdagId],
   );
 }
+
+/**
+ * Raderar en jaktdag PERMANENT från historiken, tillsammans med dess
+ * Drev-rader och JaktdagHund-kopplingar (Filip 2026-11-02 - tomma jaktdagar
+ * blev annars kvar i loggen för alltid). Jaktmarken och hundarna rörs inte.
+ *
+ * Bara avslutade jaktdagar kan raderas: en pågående jaktdag hör ihop med
+ * timern och låsskärmskortet och avslutas först på Hem. UI:t
+ * (app/(tabs)/historik/[jaktdagId].tsx) kräver en bekräftelse om dagen
+ * har drev, annars raderas den direkt - samma princip som för hundar.
+ */
+export async function raderaJaktdag(
+  db: SQLiteDatabase,
+  jaktdagId: Uuid,
+): Promise<void> {
+  const jaktdag = await db.getFirstAsync<{ status: string }>(
+    "SELECT status FROM Jaktdag WHERE id = ?",
+    [jaktdagId],
+  );
+  if (!jaktdag) {
+    throw new Error("Jaktdagen hittades inte.");
+  }
+  if (jaktdag.status !== "avslutad") {
+    throw new Error("Kan inte radera en pågående jaktdag - avsluta den på Hem först.");
+  }
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync("DELETE FROM Drev WHERE jaktdagId = ?", [jaktdagId]);
+    await db.runAsync("DELETE FROM JaktdagHund WHERE jaktdagId = ?", [jaktdagId]);
+    await db.runAsync("DELETE FROM Jaktdag WHERE id = ?", [jaktdagId]);
+  });
+}

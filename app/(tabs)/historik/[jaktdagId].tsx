@@ -2,14 +2,17 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
-import { hamtaJaktdag } from "@/db/queries/jaktdag";
+import { hamtaJaktdag, raderaJaktdag } from "@/db/queries/jaktdag";
 import { hamtaDrevMedHundnamnForJaktdag } from "@/db/queries/statistik";
 import type { DrevMedHundnamn, Jaktdag } from "@/db/types";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { formateraTid } from "@/hooks/useElapsedTime";
 import { useFarger } from "@/theme/TemaContext";
 import { Kort, Listrad } from "@/components/ui/Kort";
-import { Etikett, Skarm, VarningsChip } from "@/components/ui/Delar";
+import { Etikett, Felrad, Skarm, VarningsChip } from "@/components/ui/Delar";
+import { Knapp } from "@/components/ui/Knapp";
+import { InlineBanner } from "@/components/InlineBanner";
+import { avstand } from "@/theme/tokens";
 import { Txt } from "@/components/ui/Txt";
 import { antalDrevText, formateraVaraktighet } from "@/utils/format";
 
@@ -23,6 +26,10 @@ import { antalDrevText, formateraVaraktighet } from "@/utils/format";
  * utfall eller radera drevet - Filip: "all historik ska vara editerbar".
  * useFocusEffect hämtar om listan när man kommer tillbaka hit, så en
  * ändring eller radering syns direkt.
+ *
+ * 2026-11-02: "Radera jaktdag" (liten röd knapp under rubriken, som
+ * "Radera drev"). Har dagen drev krävs en bekräftelse, annars raderas den
+ * direkt. Pågående jaktdagar kan inte raderas (knappen visas inte).
  */
 export default function JaktdagHistorik() {
   const f = useFarger();
@@ -30,6 +37,9 @@ export default function JaktdagHistorik() {
 
   const [jaktdag, setJaktdag] = useState<Jaktdag | null>(null);
   const [drev, setDrev] = useState<DrevMedHundnamn[] | null>(null);
+  const [raderar, setRaderar] = useState(false);
+  const [visaBekraftelse, setVisaBekraftelse] = useState(false);
+  const [fel, setFel] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,6 +54,8 @@ export default function JaktdagHistorik() {
         if (!avbruten) {
           setJaktdag(j);
           setDrev(d);
+          setVisaBekraftelse(false);
+          setFel(null);
         }
       })();
 
@@ -61,12 +73,58 @@ export default function JaktdagHistorik() {
     );
   }
 
+  async function radera() {
+    if (raderar) return;
+    setRaderar(true);
+    setFel(null);
+    try {
+      const db = await getDatabase();
+      await raderaJaktdag(db, jaktdagId);
+      router.back();
+    } catch (e) {
+      setFel(e instanceof Error ? e.message : "Kunde inte radera jaktdagen.");
+      setRaderar(false);
+      setVisaBekraftelse(false);
+    }
+  }
+
+  const kanRadera = jaktdag.status === "avslutad";
+
   const avslutade = drev.filter((d) => d.endTimestamp !== null);
   const totalDrevtid = avslutade.reduce((summa, d) => summa + (d.duration ?? 0), 0);
 
   return (
     <Skarm>
       <ScreenHeader jaktmark={jaktdag.jaktmark} datum={new Date(jaktdag.datum * 1000)} visaTillbaka />
+
+      {kanRadera && (
+        <View style={styles.block}>
+          {fel && <Felrad text={fel} />}
+          {!visaBekraftelse ? (
+            <Knapp
+              titel="Radera jaktdag"
+              variant="faraLiten"
+              fullBredd
+              onPress={() => (drev.length > 0 ? setVisaBekraftelse(true) : radera())}
+              laddar={raderar}
+            />
+          ) : (
+            <>
+              <InlineBanner
+                text={`Jaktdagen och ${antalDrevText(drev.length)} raderas permanent. Det går inte att ångra.`}
+                typ="error"
+              />
+              <Knapp titel="Ja, radera permanent" variant="fara" onPress={radera} laddar={raderar} />
+              <Knapp
+                titel="Avbryt"
+                variant="sekundar"
+                onPress={() => setVisaBekraftelse(false)}
+                disabled={raderar}
+              />
+            </>
+          )}
+        </View>
+      )}
 
       {drev.length === 0 ? (
         <Kort>
@@ -106,5 +164,6 @@ export default function JaktdagHistorik() {
 }
 
 const styles = StyleSheet.create({
+  block: { gap: avstand.s3 },
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
 });
