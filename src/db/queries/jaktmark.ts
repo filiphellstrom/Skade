@@ -30,9 +30,14 @@ async function hittaMedNamn(
   namn: string,
   utomId?: Uuid,
 ): Promise<Jaktmark | null> {
-  const alla = await db.getAllAsync<Jaktmark>("SELECT * FROM Jaktmark WHERE profilId = ?", [profilId]);
+  const alla = await db.getAllAsync<Jaktmark>(
+    "SELECT * FROM Jaktmark WHERE profilId = ?",
+    [profilId],
+  );
   const nyckel = namnNyckel(namn);
-  return alla.find((m) => m.id !== utomId && namnNyckel(m.namn) === nyckel) ?? null;
+  return (
+    alla.find((m) => m.id !== utomId && namnNyckel(m.namn) === nyckel) ?? null
+  );
 }
 
 /**
@@ -53,7 +58,11 @@ export async function hamtaEllerSkapaJaktmark(
   return skapaNyJaktmark(db, profilId, namn);
 }
 
-async function skapaNyJaktmark(db: SQLiteDatabase, profilId: Uuid, namn: string): Promise<Jaktmark> {
+async function skapaNyJaktmark(
+  db: SQLiteDatabase,
+  profilId: Uuid,
+  namn: string,
+): Promise<Jaktmark> {
   const trimmat = namn.trim().replace(/\s+/g, " ");
   const id = randomUUID();
   const now = Math.floor(Date.now() / 1000);
@@ -61,7 +70,16 @@ async function skapaNyJaktmark(db: SQLiteDatabase, profilId: Uuid, namn: string)
     "INSERT INTO Jaktmark (id, profilId, namn, wehuntId, createdAt, updatedAt) VALUES (?, ?, ?, NULL, ?, ?)",
     [id, profilId, trimmat, now, now],
   );
-  return { id, profilId, namn: trimmat, wehuntId: null, createdAt: now, updatedAt: now };
+  return {
+    id,
+    profilId,
+    namn: trimmat,
+    wehuntId: null,
+    lat: null,
+    lon: null,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 /**
@@ -166,4 +184,27 @@ export async function uppdateraJaktmark(
       [params.wehuntId, now, jaktmarkId],
     );
   }
+}
+
+/**
+ * Migration 0007: sätter (eller rensar med null) jaktmarkens ungefärliga
+ * position. Avrundas till 2 decimaler (ca 1 km) - räcker för SMHI:s
+ * rutnät och avslöjar inte exakt var passen ligger.
+ */
+export async function settJaktmarkPosition(
+  db: SQLiteDatabase,
+  jaktmarkId: Uuid,
+  position: { lat: number; lon: number } | null,
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  const avrunda = (v: number) => Math.round(v * 100) / 100;
+  await db.runAsync(
+    "UPDATE Jaktmark SET lat = ?, lon = ?, updatedAt = ? WHERE id = ?",
+    [
+      position ? avrunda(position.lat) : null,
+      position ? avrunda(position.lon) : null,
+      now,
+      jaktmarkId,
+    ],
+  );
 }

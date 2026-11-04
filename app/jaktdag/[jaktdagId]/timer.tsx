@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  AppState,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { hamtaJaktdag, settAktivHund } from "@/db/queries/jaktdag";
@@ -10,7 +17,23 @@ import {
   startaDrev,
   stoppaDrev,
 } from "@/db/queries/drev";
-import type { Drev, Hund, Jaktdag } from "@/db/types";
+import type {
+  Drev,
+  DrevHandelse,
+  DrevMedHundnamn,
+  HandelseTyp,
+  Hund,
+  Jaktdag,
+  Vader,
+} from "@/db/types";
+import {
+  hamtaHandelserForJaktdag,
+  registreraHandelse,
+} from "@/db/queries/handelse";
+import { hamtaVaderForDrev } from "@/db/queries/vader";
+import { oppenTappt, sokerSedan, tapptTid } from "@/utils/drevhandelser";
+import { foreNamn, vaderText, vadretsKo } from "@/utils/vader";
+import { InlineBanner } from "@/components/InlineBanner";
 import { SelectableCard } from "@/components/SelectableCard";
 import { TimerDisplay } from "@/components/TimerDisplay";
 import { useElapsedTime, formateraTid } from "@/hooks/useElapsedTime";
@@ -77,6 +100,12 @@ export default function Timer() {
   const [visaBytHund, setVisaBytHund] = useState(false);
   const [laddat, setLaddat] = useState(false);
   const [antalDrev, setAntalDrev] = useState(0);
+  // 2026-11-04: drevhändelser (släpp/tappt/återupptag/kopplad), dagens
+  // drev (för söktid) och vädret vid senaste drevstart.
+  const [handelser, setHandelser] = useState<DrevHandelse[]>([]);
+  const [dagensDrev, setDagensDrev] = useState<DrevMedHundnamn[]>([]);
+  const [vader, setVader] = useState<Vader | null>(null);
+  const [fragaSlut, setFragaSlut] = useState(false);
   const [sparar, setSparar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
 
@@ -104,14 +133,20 @@ export default function Timer() {
 
       (async () => {
         const db = await getDatabase();
-        const [j, hundar, drev, senaste, allaDrev] = await Promise.all([
+        const [j, hundar, drev, senaste, allaDrev, h] = await Promise.all([
           hamtaJaktdag(db, jaktdagId),
           hamtaHundarForJaktdag(db, jaktdagId),
           hamtaPagaendeDrev(db, jaktdagId),
           hamtaSenasteDrev(db, jaktdagId),
           hamtaDrevMedHundnamnForJaktdag(db, jaktdagId),
+          hamtaHandelserForJaktdag(db, jaktdagId),
         ]);
+        const v = senaste ? await hamtaVaderForDrev(db, senaste.id) : null;
         if (!avbruten) {
+          setHandelser(h);
+          setDagensDrev(allaDrev);
+          setVader(v);
+          setFragaSlut(false);
           setJaktdag(j);
           setHundarPaJaktdagen(hundar);
           setPagaendeDrev(drev);
@@ -123,6 +158,15 @@ export default function Timer() {
           // Låsskärmen (Live Activity) ska spegla databasen - se
           // src/liveActivity.ts. Väntas inte in: får aldrig blockera timern.
           void synkaLasskarm(profil.id);
+          // Väder för drev som saknar det (inget nät vid drevstart).
+          if (j) {
+            void vadretsKo(db, jaktdagId, j.jaktmarkId).then(async () => {
+              const ny = senaste
+                ? await hamtaVaderForDrev(db, senaste.id)
+                : null;
+              if (!avbruten && ny) setVader(ny);
+            });
+          }
         }
       })();
 
@@ -137,7 +181,30 @@ export default function Timer() {
 
   const elapsed = useElapsedTime(pagaendeDrev?.startTimestamp ?? null);
 
-  const aktivHund = hundarPaJaktdagen.find((h) => h.id === jaktdag?.aktivHundId);
+  const aktivHund = hundarPaJaktdagen.find(
+    (h) => h.id === jaktdag?.aktivHundId,
+  );
+
+  // Drevhändelser (2026-11-04). Hooks före tidiga return nedan.
+  const drevHandelser = pagaendeDrev
+    ? handelser.filter((h) => h.drevId === pagaendeDrev.id)
+    : [];
+  const tapptSedan = pagaendeDrev ? oppenTappt(drevHandelser) : null;
+  const senasteSlutForHund = aktivHund
+    ? dagensDrev
+        .filter((d) => d.hundId === aktivHund.id && d.endTimestamp !== null)
+        .reduce<number | null>(
+          (max, d) => Math.max(max ?? 0, d.endTimestamp ?? 0),
+          null,
+        )
+    : null;
+  const sokerFran =
+    !pagaendeDrev && aktivHund
+      ? sokerSedan(aktivHund.id, handelser, senasteSlutForHund)
+      : null;
+  const sokSekunder = useElapsedTime(sokerFran);
+  const tapptNu = useElapsedTime(tapptSedan);
+  const tapptTotalt = pagaendeDrev ? tapptTid(drevHandelser, null) : 0;
 
   const start = async () => {
     if (!aktivHund || sparar || pagaendeDrev) {
@@ -154,7 +221,17 @@ export default function Timer() {
       setPagaendeDrev(drev);
       setSenasteDrev(null);
       setAntalDrev((n) => n + 1);
+      setDagensDrev((lista) => [
+        ...lista,
+        { ...drev, hundNamn: aktivHund.namn },
+      ]);
       void synkaLasskarm(profil.id);
+      if (jaktdag) {
+        // Fire-and-forget: får aldrig blockera timern.
+        void vadretsKo(db, jaktdagId, jaktdag.jaktmarkId).then(async () => {
+          setVader(await hamtaVaderForDrev(db, drev.id));
+        });
+      }
     } catch (e) {
       setFel(
         e instanceof Error
@@ -166,21 +243,54 @@ export default function Timer() {
     }
   };
 
-  const stopp = async () => {
+  const stopp = async (vidTappt?: number) => {
     if (!pagaendeDrev || sparar) {
       return;
     }
+    // Står drevet i tappt: fråga först om drevet slutade vid tappten.
+    if (vidTappt === undefined && tapptSedan !== null && !fragaSlut) {
+      setFragaSlut(true);
+      return;
+    }
+    setFragaSlut(false);
     setFel(null);
     setSparar(true);
     try {
       const db = await getDatabase();
-      const avslutatDrev = await stoppaDrev(db, pagaendeDrev.id);
+      const avslutatDrev = await stoppaDrev(db, pagaendeDrev.id, vidTappt);
       setSenasteDrev(avslutatDrev);
       setPagaendeDrev(null);
       void synkaLasskarm(profil.id);
       router.push(`/jaktdag/${jaktdagId}/drev/${avslutatDrev.id}?nystoppat=1`);
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte stoppa drevet.");
+    } finally {
+      setSparar(false);
+    }
+  };
+
+  const registrera = async (typ: HandelseTyp) => {
+    if (!aktivHund || sparar) {
+      return;
+    }
+    setFel(null);
+    setSparar(true);
+    try {
+      const db = await getDatabase();
+      const drevId =
+        typ === "tappt" || typ === "atertag"
+          ? (pagaendeDrev?.id ?? null)
+          : null;
+      const hundId = pagaendeDrev?.hundId ?? aktivHund.id;
+      const ny = await registreraHandelse(db, {
+        jaktdagId,
+        hundId,
+        drevId,
+        typ,
+      });
+      setHandelser((lista) => [...lista, ny]);
+    } catch (e) {
+      setFel(e instanceof Error ? e.message : "Kunde inte spara.");
     } finally {
       setSparar(false);
     }
@@ -223,12 +333,61 @@ export default function Timer() {
         kontext={`${jaktdag.jaktmark} · Drev ${drevNummer}`}
         sekunder={elapsed}
         pagar={pagaendeDrev !== null}
-        senasteDrevTid={senasteDrev && !pagaendeDrev ? formateraTid(senasteDrev.duration ?? 0) : null}
+        senasteDrevTid={
+          senasteDrev && !pagaendeDrev
+            ? formateraTid(senasteDrev.duration ?? 0)
+            : null
+        }
         kanStarta={!!aktivHund}
         sparar={sparar}
         fel={fel}
         onStart={start}
-        onStopp={stopp}
+        onStopp={() => stopp()}
+        status={
+          tapptSedan !== null
+            ? `Tappt ${formateraTid(tapptNu)}`
+            : pagaendeDrev && tapptTotalt > 0
+              ? `Tappt totalt ${formateraTid(tapptTotalt)}`
+              : sokerFran !== null
+                ? `Söker ${formateraTid(sokSekunder)}`
+                : null
+        }
+        vaderRad={
+          [vaderText(vader), foreNamn(jaktdag.fore)]
+            .filter(Boolean)
+            .join(" · ") || null
+        }
+        handelse={
+          fragaSlut && tapptSedan !== null
+            ? {
+                typ: "fragaSlut",
+                tapptKlockslag: new Date(tapptSedan * 1000).toLocaleTimeString(
+                  "sv-SE",
+                  {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  },
+                ),
+                vidTappt: () => stopp(tapptSedan),
+                nu: () => stopp(Math.floor(Date.now() / 1000)),
+                avbryt: () => setFragaSlut(false),
+              }
+            : pagaendeDrev
+              ? {
+                  typ: "drev",
+                  iTappt: tapptSedan !== null,
+                  onTappt: () =>
+                    registrera(tapptSedan !== null ? "atertag" : "tappt"),
+                }
+              : aktivHund
+                ? {
+                    typ: "vila",
+                    soker: sokerFran !== null,
+                    onSlapp: () => registrera("slapp"),
+                    onKopplad: () => registrera("kopplad"),
+                  }
+                : null
+        }
         bytHund={
           hundarPaJaktdagen.length > 1 && !pagaendeDrev
             ? {
@@ -254,6 +413,18 @@ function Laddar() {
   );
 }
 
+/** Knapparna för drevhändelser, beroende på läge (2026-11-04). */
+type HandelseKnappar =
+  | { typ: "vila"; soker: boolean; onSlapp: () => void; onKopplad: () => void }
+  | { typ: "drev"; iTappt: boolean; onTappt: () => void }
+  | {
+      typ: "fragaSlut";
+      tapptKlockslag: string;
+      vidTappt: () => void;
+      nu: () => void;
+      avbryt: () => void;
+    };
+
 /**
  * Själva fältläget, ritat inom TimerTemaOmrade så att alla färger kommer
  * från timerns eget tema. Tre element enligt Design Systemet (TimerPanel):
@@ -272,6 +443,9 @@ function TimerVy(props: {
   fel: string | null;
   onStart: () => void;
   onStopp: () => void;
+  status: string | null;
+  vaderRad: string | null;
+  handelse: HandelseKnappar | null;
   bytHund: {
     visa: boolean;
     vaxla: () => void;
@@ -300,7 +474,9 @@ function TimerVy(props: {
         <TillbakaKnapp />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={mork ? "Byt timern till ljust tema" : "Byt timern till mörkt tema"}
+          accessibilityLabel={
+            mork ? "Byt timern till ljust tema" : "Byt timern till mörkt tema"
+          }
           onPress={() => setTimerTemaVal(mork ? "ljust" : "morkt")}
           style={({ pressed }) => [
             styles.temaKnapp,
@@ -348,7 +524,17 @@ function TimerVy(props: {
           </View>
         )}
 
-        <TimerDisplay sekunder={props.sekunder} pagar={props.pagar} />
+        <TimerDisplay
+          sekunder={props.sekunder}
+          pagar={props.pagar}
+          status={props.status}
+        />
+
+        {props.vaderRad && (
+          <Txt variant="caption" farg="inkMuted" style={styles.center}>
+            {props.vaderRad}
+          </Txt>
+        )}
 
         {props.senasteDrevTid && (
           <Txt variant="caption" farg="inkMuted" style={styles.center}>
@@ -359,18 +545,83 @@ function TimerVy(props: {
         <Felrad text={props.fel} />
       </ScrollView>
 
-      {props.pagar ? (
-        <Knapp variant="stopp" ikon="stopp" titel="Stoppa drev" onPress={props.onStopp} laddar={props.sparar} minHojd={112} />
+      {props.handelse?.typ === "fragaSlut" ? (
+        <View style={styles.knappar}>
+          <InlineBanner
+            typ="info"
+            text={`Drevet står i tappt sedan ${props.handelse.tapptKlockslag}. Slutade drevet vid tappten?`}
+          />
+          <Knapp
+            variant="stopp"
+            titel={`Ja, slutade ${props.handelse.tapptKlockslag}`}
+            onPress={props.handelse.vidTappt}
+            laddar={props.sparar}
+            minHojd={80}
+          />
+          <Knapp
+            variant="sekundar"
+            titel="Nej, stoppa nu"
+            onPress={props.handelse.nu}
+            disabled={props.sparar}
+            minHojd={64}
+          />
+          <Knapp
+            variant="text"
+            titel="Avbryt"
+            onPress={props.handelse.avbryt}
+            style={styles.bytHund}
+          />
+        </View>
+      ) : props.pagar ? (
+        <View style={styles.knappar}>
+          {props.handelse?.typ === "drev" && (
+            <Knapp
+              variant={props.handelse.iTappt ? "primar" : "sekundar"}
+              titel={props.handelse.iTappt ? "Tog upp igen" : "Tappt"}
+              onPress={props.handelse.onTappt}
+              disabled={props.sparar}
+              minHojd={80}
+            />
+          )}
+          <Knapp
+            variant="stopp"
+            ikon="stopp"
+            titel="Stoppa drev"
+            onPress={props.onStopp}
+            laddar={props.sparar}
+            minHojd={112}
+          />
+        </View>
       ) : (
-        <Knapp
-          variant="start"
-          ikon="spela"
-          titel="Starta drev"
-          onPress={props.onStart}
-          disabled={!props.kanStarta}
-          laddar={props.sparar}
-          minHojd={112}
-        />
+        <View style={styles.knappar}>
+          {props.handelse?.typ === "vila" &&
+            (props.handelse.soker ? (
+              <Knapp
+                variant="sekundar"
+                titel="Kopplad"
+                onPress={props.handelse.onKopplad}
+                disabled={props.sparar}
+                minHojd={64}
+              />
+            ) : (
+              <Knapp
+                variant="sekundar"
+                titel="Släppt"
+                onPress={props.handelse.onSlapp}
+                disabled={props.sparar}
+                minHojd={64}
+              />
+            ))}
+          <Knapp
+            variant="start"
+            ikon="spela"
+            titel="Starta drev"
+            onPress={props.onStart}
+            disabled={!props.kanStarta}
+            laddar={props.sparar}
+            minHojd={112}
+          />
+        </View>
       )}
     </View>
   );
@@ -380,7 +631,11 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
   container: { flex: 1, paddingHorizontal: avstand.s4, gap: avstand.s4 },
-  topprad: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  topprad: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   temaKnapp: {
     flexDirection: "row",
     alignItems: "center",
@@ -390,9 +645,15 @@ const styles = StyleSheet.create({
     paddingRight: 20,
     borderRadius: radie.md,
   },
-  mitten: { flexGrow: 1, justifyContent: "center", alignItems: "stretch", gap: avstand.s4 },
+  mitten: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "stretch",
+    gap: avstand.s4,
+  },
   hundBlock: { alignItems: "center", gap: avstand.s1 },
   bytHund: { alignSelf: "center" },
   hundlista: { gap: avstand.s2 },
+  knappar: { gap: avstand.s3 },
   center: { textAlign: "center" },
 });

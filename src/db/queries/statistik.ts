@@ -1,5 +1,13 @@
 import type { SQLiteDatabase } from "expo-sqlite";
+import { hamtaHandelserForProfil } from "./handelse";
+import { soktid, tapptTid } from "../../utils/drevhandelser";
+import { FORE_VAL, temperaturIntervall } from "../../utils/vader";
 import type {
+  Drev,
+  DrevHandelse,
+  Fore,
+  Snittpost,
+  UtokadHundStatistik,
   DrevMedHundnamn,
   Fordelningspost,
   HundStatistik,
@@ -123,7 +131,11 @@ export async function hamtaStatistikPerHund(
     params,
   );
 
-  const viltart = await db.getAllAsync<{ hundId: Uuid; namn: string; antal: number }>(
+  const viltart = await db.getAllAsync<{
+    hundId: Uuid;
+    namn: string;
+    antal: number;
+  }>(
     `SELECT d.hundId, COALESCE(NULLIF(TRIM(d.species), ''), 'Okänt') AS namn, COUNT(*) AS antal
      FROM Drev d
      JOIN Hund h ON h.id = d.hundId
@@ -133,7 +145,11 @@ export async function hamtaStatistikPerHund(
     params,
   );
 
-  const utfall = await db.getAllAsync<{ hundId: Uuid; namn: string; antal: number }>(
+  const utfall = await db.getAllAsync<{
+    hundId: Uuid;
+    namn: string;
+    antal: number;
+  }>(
     `SELECT d.hundId, COALESCE(NULLIF(TRIM(d.outcome), ''), 'Okänt') AS namn, COUNT(*) AS antal
      FROM Drev d
      JOIN Hund h ON h.id = d.hundId
@@ -143,7 +159,9 @@ export async function hamtaStatistikPerHund(
     params,
   );
 
-  const grupperaPerHund = (rader: { hundId: Uuid; namn: string; antal: number }[]) => {
+  const grupperaPerHund = (
+    rader: { hundId: Uuid; namn: string; antal: number }[],
+  ) => {
     const karta = new Map<Uuid, Fordelningspost[]>();
     for (const rad of rader) {
       const lista = karta.get(rad.hundId) ?? [];
@@ -156,6 +174,8 @@ export async function hamtaStatistikPerHund(
   const viltartPerHund = grupperaPerHund(viltart);
   const utfallPerHund = grupperaPerHund(utfall);
 
+  const utokad = await hamtaUtokadStatistik(db, profilId, intervall);
+
   return grund.map((rad) => ({
     hundId: rad.hundId,
     namn: rad.namn,
@@ -163,5 +183,160 @@ export async function hamtaStatistikPerHund(
     totalDrevtid: rad.totalDrevtid,
     viltartFordelning: viltartPerHund.get(rad.hundId) ?? [],
     utfallFordelning: utfallPerHund.get(rad.hundId) ?? [],
+    utokad: utokad.get(rad.hundId) ?? tomUtokad(rad.totalDrevtid),
   }));
+}
+
+function tomUtokad(totalDrevtid: number): UtokadHundStatistik {
+  return {
+    effektivDrevtid: totalDrevtid,
+    snittSoktid: null,
+    antalMedSoktid: 0,
+    antalTappt: 0,
+    atertagsgrad: null,
+    perFore: [],
+    perTemperatur: [],
+    antalFallt: 0,
+    drevMedFallt: 0,
+  };
+}
+
+type DrevForStatistik = Pick<
+  Drev,
+  "id" | "jaktdagId" | "hundId" | "startTimestamp" | "endTimestamp" | "duration"
+> & {
+  fore: Fore | null;
+  temperatur: number | null;
+  fallt: number;
+};
+
+/**
+ * 2026-11-04: statistik över drevhändelser (söktid, tappt, effektiv
+ * drevtid), väder/före (snittdrevtid per före och temperaturintervall)
+ * och fällt vilt, per hund. Räknas i JS från rådata - samma funktioner
+ * (src/utils/drevhandelser.ts) som timern och drevvyn använder.
+ */
+async function hamtaUtokadStatistik(
+  db: SQLiteDatabase,
+  profilId: Uuid,
+  intervall?: Intervall,
+): Promise<Map<Uuid, UtokadHundStatistik>> {
+  const villkor = intervall
+    ? "AND d.startTimestamp >= ? AND d.startTimestamp < ?"
+    : "";
+  const params = intervall
+    ? [profilId, intervall.fran, intervall.till]
+    : [profilId];
+
+  const drev = await db.getAllAsync<DrevForStatistik>(
+    `SELECT d.id, d.jaktdagId, d.hundId, d.startTimestamp, d.endTimestamp, d.duration,
+            j.fore AS fore,
+            (SELECT v.temperatur FROM Vader v WHERE v.drevId = d.id ORDER BY v.createdAt DESC LIMIT 1) AS temperatur,
+            COALESCE((SELECT SUM(f.antal) FROM FalltVilt f WHERE f.drevId = d.id), 0) AS fallt
+     FROM Drev d
+     JOIN Jaktdag j ON j.id = d.jaktdagId
+     WHERE j.profilId = ? AND d.endTimestamp IS NOT NULL ${villkor}
+     ORDER BY d.startTimestamp ASC`,
+    params,
+  );
+  if (drev.length === 0) {
+    return new Map();
+  }
+  const handelser = await hamtaHandelserForProfil(db, profilId);
+
+  const perJaktdag = new Map<Uuid, DrevHandelse[]>();
+  for (const h of handelser) {
+    const lista = perJaktdag.get(h.jaktdagId) ?? [];
+    lista.push(h);
+    perJaktdag.set(h.jaktdagId, lista);
+  }
+  const drevPerJaktdag = new Map<Uuid, DrevForStatistik[]>();
+  for (const d of drev) {
+    const lista = drevPerJaktdag.get(d.jaktdagId) ?? [];
+    lista.push(d);
+    drevPerJaktdag.set(d.jaktdagId, lista);
+  }
+
+  const snittposter = (
+    grupper: Map<string, number[]>,
+    ordning: string[],
+  ): Snittpost[] =>
+    ordning
+      .filter((namn) => grupper.has(namn))
+      .map((namn) => {
+        const tider = grupper.get(namn) ?? [];
+        return {
+          namn,
+          antal: tider.length,
+          snitt: tider.reduce((a, b) => a + b, 0) / tider.length,
+        };
+      });
+
+  const perHund = new Map<Uuid, DrevForStatistik[]>();
+  for (const d of drev) {
+    const lista = perHund.get(d.hundId) ?? [];
+    lista.push(d);
+    perHund.set(d.hundId, lista);
+  }
+
+  const resultat = new Map<Uuid, UtokadHundStatistik>();
+  for (const [hundId, hundensDrev] of perHund) {
+    let total = 0;
+    let tappt = 0;
+    let antalTappt = 0;
+    let antalAtertag = 0;
+    const soktider: number[] = [];
+    const fore = new Map<string, number[]>();
+    const temp = new Map<string, number[]>();
+    let antalFallt = 0;
+    let drevMedFallt = 0;
+
+    for (const d of hundensDrev) {
+      const dagens = perJaktdag.get(d.jaktdagId) ?? [];
+      const egna = dagens.filter((h) => h.drevId === d.id);
+      const tid = d.duration ?? 0;
+      total += tid;
+      tappt += tapptTid(egna, d.endTimestamp);
+      antalTappt += egna.filter((h) => h.typ === "tappt").length;
+      antalAtertag += egna.filter((h) => h.typ === "atertag").length;
+      const s = soktid(d, dagens, drevPerJaktdag.get(d.jaktdagId) ?? []);
+      if (s !== null) {
+        soktider.push(s);
+      }
+      const foreTitel =
+        FORE_VAL.find((f) => f.varde === d.fore)?.titel ?? "Inte angivet";
+      fore.set(foreTitel, [...(fore.get(foreTitel) ?? []), tid]);
+      const tempNamn = temperaturIntervall(d.temperatur);
+      temp.set(tempNamn, [...(temp.get(tempNamn) ?? []), tid]);
+      antalFallt += d.fallt;
+      if (d.fallt > 0) {
+        drevMedFallt += 1;
+      }
+    }
+
+    resultat.set(hundId, {
+      effektivDrevtid: Math.max(0, total - tappt),
+      snittSoktid: soktider.length
+        ? soktider.reduce((a, b) => a + b, 0) / soktider.length
+        : null,
+      antalMedSoktid: soktider.length,
+      antalTappt,
+      atertagsgrad:
+        antalTappt > 0 ? Math.min(1, antalAtertag / antalTappt) : null,
+      perFore: snittposter(fore, [
+        ...FORE_VAL.map((f) => f.titel),
+        "Inte angivet",
+      ]),
+      perTemperatur: snittposter(temp, [
+        "Under −10°",
+        "−10 till 0°",
+        "0 till 10°",
+        "Över 10°",
+        "Okänd",
+      ]),
+      antalFallt,
+      drevMedFallt,
+    });
+  }
+  return resultat;
 }

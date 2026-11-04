@@ -1,10 +1,37 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
-import { hamtaDrevMedHundnamn, raderaDrev, uppdateraDrev } from "@/db/queries/drev";
+import {
+  hamtaDrevMedHundnamn,
+  raderaDrev,
+  uppdateraDrev,
+} from "@/db/queries/drev";
 import { hamtaHundarForJaktdag } from "@/db/queries/hund";
-import type { DrevMedHundnamn, Hund } from "@/db/types";
+import type {
+  DrevHandelse,
+  DrevMedHundnamn,
+  FalltVilt,
+  Hund,
+  Vader,
+} from "@/db/types";
+import {
+  hamtaHandelserForJaktdag,
+  raderaHandelse,
+} from "@/db/queries/handelse";
+import { hamtaVaderForDrev } from "@/db/queries/vader";
+import { hamtaFalltViltForDrev } from "@/db/queries/fallt";
+import { hamtaDrevMedHundnamnForJaktdag } from "@/db/queries/statistik";
+import {
+  HANDELSE_NAMN,
+  soktid,
+  sorteraHandelser,
+  tapptTid,
+} from "@/utils/drevhandelser";
+import { VADER_KALLA, vaderText } from "@/utils/vader";
+import { UTFALL, UTFALL_FALLD, VILTARTER } from "@/utils/vilt";
+import { Kort, Listrad } from "@/components/ui/Kort";
+import { formateraVaraktighet } from "@/utils/format";
 import { ChipSelect } from "@/components/ChipSelect";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SelectableCard } from "@/components/SelectableCard";
@@ -16,10 +43,11 @@ import { Knapp } from "@/components/ui/Knapp";
 import { Etikett, Felrad, Skarm } from "@/components/ui/Delar";
 import { Txt } from "@/components/ui/Txt";
 
-// Ordning bestämd av Filip 2026-10-09. "Eget" (fritext i en dialog) läggs
-// till av ChipSelect efter Övrigt.
-const VILTARTER = ["Älg", "Vildsvin", "Rådjur", "Dovhjort", "Kronhjort", "Räv", "Hare", "Övrigt"];
-const UTFALL = ["Fälld", "Missad", "Ingen kontakt"];
+const klockslag = (ts: number) =>
+  new Date(ts * 1000).toLocaleTimeString("sv-SE", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 /**
  * Vy för ett enskilt drev - hund, start-/sluttid, viltart/utfall, samt
@@ -77,6 +105,11 @@ export default function RedigeraDrev() {
   const [raderar, setRaderar] = useState(false);
   const [visaRaderaBekraftelse, setVisaRaderaBekraftelse] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
+  // 2026-11-04: händelser, söktid, väder och fällt vilt för drevet.
+  const [handelser, setHandelser] = useState<DrevHandelse[]>([]);
+  const [sok, setSok] = useState<number | null>(null);
+  const [vader, setVader] = useState<Vader | null>(null);
+  const [fallt, setFallt] = useState<FalltVilt[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -84,13 +117,24 @@ export default function RedigeraDrev() {
 
       (async () => {
         const db = await getDatabase();
-        const [d, hundar] = await Promise.all([
-          hamtaDrevMedHundnamn(db, drevId),
-          hamtaHundarForJaktdag(db, jaktdagId),
-        ]);
+        const [d, hundar, dagensHandelser, dagensDrev, v, f] =
+          await Promise.all([
+            hamtaDrevMedHundnamn(db, drevId),
+            hamtaHundarForJaktdag(db, jaktdagId),
+            hamtaHandelserForJaktdag(db, jaktdagId),
+            hamtaDrevMedHundnamnForJaktdag(db, jaktdagId),
+            hamtaVaderForDrev(db, drevId),
+            hamtaFalltViltForDrev(db, drevId),
+          ]);
         if (avbruten) {
           return;
         }
+        setHandelser(
+          sorteraHandelser(dagensHandelser.filter((h) => h.drevId === drevId)),
+        );
+        setSok(d ? soktid(d, dagensHandelser, dagensDrev) : null);
+        setVader(v);
+        setFallt(f);
         if (d) {
           setDrev(d);
           setHundId(d.hundId);
@@ -136,6 +180,14 @@ export default function RedigeraDrev() {
         species,
         outcome,
       });
+      // Fälld och inget vilt registrerat än: fråga direkt om fällt vilt.
+      if (outcome === UTFALL_FALLD && fallt.length === 0) {
+        const art = encodeURIComponent(species);
+        router.replace(
+          `/jaktdag/${jaktdagId}/fallt/ny?drevId=${drevId}&art=${art}`,
+        );
+        return;
+      }
       tillbaka();
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte spara drevet.");
@@ -175,14 +227,30 @@ export default function RedigeraDrev() {
     );
   }
 
-  const hundNamnNu = hundarPaJaktdagen.find((h) => h.id === hundId)?.namn ?? drev.hundNamn;
+  const hundNamnNu =
+    hundarPaJaktdagen.find((h) => h.id === hundId)?.namn ?? drev.hundNamn;
+  const tappt = tapptTid(handelser, endTimestamp);
+  const vaderRad = vaderText(vader);
+
+  const taBortHandelse = async (id: string) => {
+    const db = await getDatabase();
+    await raderaHandelse(db, id);
+    setHandelser((lista) => lista.filter((h) => h.id !== id));
+  };
 
   return (
     <Skarm
       sidfot={
         <View style={styles.sidfot}>
-          <Felrad text={!kanSpara ? "Sluttiden måste vara efter starttiden." : fel} />
-          <Knapp titel="Spara" onPress={spara} laddar={sparar} disabled={!kanSpara} />
+          <Felrad
+            text={!kanSpara ? "Sluttiden måste vara efter starttiden." : fel}
+          />
+          <Knapp
+            titel="Spara"
+            onPress={spara}
+            laddar={sparar}
+            disabled={!kanSpara}
+          />
         </View>
       }
     >
@@ -193,6 +261,11 @@ export default function RedigeraDrev() {
         <Txt variant="body" farg="inkMuted" style={styles.undertitel}>
           {hundNamnNu} · {formateraTid(duration)}
         </Txt>
+        {vaderRad && (
+          <Txt variant="caption" farg="inkMuted" style={styles.undertitel}>
+            {vaderRad} · {VADER_KALLA}
+          </Txt>
+        )}
       </View>
 
       {!visaRaderaBekraftelse ? (
@@ -213,8 +286,16 @@ export default function RedigeraDrev() {
         </View>
       ) : (
         <View style={styles.block}>
-          <InlineBanner text="Det här drevet raderas permanent. Det går inte att ångra." typ="error" />
-          <Knapp titel="Ja, radera permanent" variant="fara" onPress={bekraftaRadering} laddar={raderar} />
+          <InlineBanner
+            text="Det här drevet raderas permanent. Det går inte att ångra."
+            typ="error"
+          />
+          <Knapp
+            titel="Ja, radera permanent"
+            variant="fara"
+            onPress={bekraftaRadering}
+            laddar={raderar}
+          />
           <Knapp
             titel="Avbryt"
             variant="sekundar"
@@ -250,7 +331,18 @@ export default function RedigeraDrev() {
         egetLage="dialog"
         dialogRubrik="Eget vilt"
       />
-      <ChipSelect label="Utfall" options={UTFALL} value={outcome} onChange={setOutcome} />
+      <ChipSelect
+        label="Utfall"
+        options={UTFALL}
+        value={outcome}
+        onChange={setOutcome}
+      />
+      {outcome !== UTFALL_FALLD && fallt.length > 0 && (
+        <InlineBanner
+          typ="info"
+          text="Drevet har fällt vilt registrerat men utfallet är inte Fälld. Viltet ligger kvar tills du tar bort det."
+        />
+      )}
       <View>
         <Etikett>TID</Etikett>
         <TidVal
@@ -260,6 +352,90 @@ export default function RedigeraDrev() {
           onSlut={setEndTimestamp}
         />
       </View>
+
+      {(handelser.length > 0 || sok !== null) && (
+        <View>
+          <Etikett>HÄNDELSER</Etikett>
+          <Kort lista>
+            {sok !== null && (
+              <Listrad
+                forsta
+                titel="Söktid"
+                undertitel="Från släpp till upptag"
+                hoger={formateraVaraktighet(sok)}
+              />
+            )}
+            <Listrad
+              forsta={sok === null}
+              titel="Upptag"
+              hoger={klockslag(startTimestamp)}
+            />
+            {handelser.map((h) => (
+              <Listrad
+                key={h.id}
+                titel={HANDELSE_NAMN[h.typ]}
+                undertitel={klockslag(h.tidpunkt)}
+                hoger="Ta bort"
+                hogerFarg="signal"
+                accessibilityLabel={`Ta bort ${HANDELSE_NAMN[h.typ]} ${klockslag(h.tidpunkt)}`}
+                onPress={() => taBortHandelse(h.id)}
+              />
+            ))}
+            <Listrad titel="Drevslut" hoger={klockslag(endTimestamp)} />
+            {tappt > 0 && (
+              <Listrad
+                titel="Effektiv drevtid"
+                undertitel={`Tappt totalt ${formateraVaraktighet(tappt)}`}
+                hoger={formateraVaraktighet(Math.max(0, duration - tappt))}
+              />
+            )}
+          </Kort>
+        </View>
+      )}
+
+      <View>
+        <Etikett>FÄLLT VILT</Etikett>
+        {fallt.length > 0 && (
+          <Kort lista>
+            {fallt.map((v, i) => (
+              <Listrad
+                key={v.id}
+                forsta={i === 0}
+                titel={
+                  v.antal > 1 ? `${v.art} ×${v.antal}` : v.art
+                }
+                undertitel={
+                  [v.skytt, v.vikt ? `${v.vikt} kg` : null]
+                    .filter(Boolean)
+                    .join(" · ") || undefined
+                }
+                onPress={() =>
+                  router.push(`/jaktdag/${jaktdagId}/fallt/${v.id}`)
+                }
+              />
+            ))}
+          </Kort>
+        )}
+        <Knapp
+          variant="text"
+          ikon="plus"
+          titel="Lägg till fällt vilt"
+          onPress={() =>
+            router.push(
+              `/jaktdag/${jaktdagId}/fallt/ny?drevId=${drevId}&art=${encodeURIComponent(species)}`,
+            )
+          }
+        />
+      </View>
+
+      {Platform.OS !== "web" && drev.endTimestamp !== null && (
+        <Knapp
+          variant="sekundar"
+          ikon="dela"
+          titel="Dela som bild"
+          onPress={() => router.push(`/dela?typ=drev&id=${drevId}`)}
+        />
+      )}
     </Skarm>
   );
 }

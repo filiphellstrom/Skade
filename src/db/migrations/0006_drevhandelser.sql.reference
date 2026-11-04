@@ -1,0 +1,18 @@
+-- Migration 0006 – drevhändelser (släpp, tappt, återupptag, kopplad).
+-- Beslutad 2026-11-04 ("Skade – förslag: drevhändelser, väder, fällt vilt och delning").
+-- Ren kopia av SQL:en i 0006_drevhandelser.ts, för dokumentation/felsökning.
+
+CREATE TABLE DrevHandelse (
+  id TEXT PRIMARY KEY,
+  jaktdagId TEXT NOT NULL REFERENCES Jaktdag(id),
+  hundId TEXT NOT NULL REFERENCES Hund(id),
+  drevId TEXT REFERENCES Drev(id),
+  typ TEXT NOT NULL CHECK (typ IN ('slapp', 'tappt', 'atertag', 'kopplad')),
+  tidpunkt INTEGER NOT NULL,
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+
+CREATE INDEX idx_handelse_jaktdag ON DrevHandelse(jaktdagId);
+CREATE INDEX idx_handelse_drev ON DrevHandelse(drevId);
+CREATE INDEX idx_handelse_hund ON DrevHandelse(hundId);

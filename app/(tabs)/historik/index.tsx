@@ -7,11 +7,20 @@ import {
   hamtaStatistikPerHund,
 } from "@/db/queries/statistik";
 import { useProfil } from "@/contexts/ProfilContext";
-import type { Fordelningspost, HundStatistik, JaktdagMedSummering } from "@/db/types";
+import type {
+  Fordelningspost,
+  HundStatistik,
+  JaktdagMedSummering,
+  Snittpost,
+} from "@/db/types";
 import { PeriodFilter } from "@/components/PeriodFilter";
 import { exporteraHistorikSomCsv } from "@/utils/export";
 import { periodTillIntervall, type HistorikPeriod } from "@/utils/period";
-import { antalDrevText, formateraDag, formateraVaraktighet } from "@/utils/format";
+import {
+  antalDrevText,
+  formateraDag,
+  formateraVaraktighet,
+} from "@/utils/format";
 import { useFarger } from "@/theme/TemaContext";
 import { avstand } from "@/theme/tokens";
 import { Knapp } from "@/components/ui/Knapp";
@@ -42,7 +51,9 @@ export default function Historik() {
 
   const [vy, setVy] = useState<Vy>("logg");
   const [period, setPeriod] = useState<HistorikPeriod>({ typ: "allt" });
-  const [jaktdagar, setJaktdagar] = useState<JaktdagMedSummering[] | null>(null);
+  const [jaktdagar, setJaktdagar] = useState<JaktdagMedSummering[] | null>(
+    null,
+  );
   const [statistik, setStatistik] = useState<HundStatistik[] | null>(null);
   const [exporterar, setExporterar] = useState(false);
   const [exportFel, setExportFel] = useState<string | null>(null);
@@ -78,7 +89,11 @@ export default function Historik() {
       const db = await getDatabase();
       await exporteraHistorikSomCsv(db, profil.id);
     } catch (e) {
-      setExportFel(e instanceof Error ? e.message : "Kunde inte exportera historiken. Försök igen.");
+      setExportFel(
+        e instanceof Error
+          ? e.message
+          : "Kunde inte exportera historiken. Försök igen.",
+      );
     } finally {
       setExporterar(false);
     }
@@ -182,9 +197,102 @@ function HundKort({ hund }: { hund: HundStatistik }) {
         etikett="UTFALL"
         poster={hund.utfallFordelning}
         andel={(p) => p.antal / Math.max(1, hund.antalDrev)}
-        varde={(p) => `${Math.round((p.antal / Math.max(1, hund.antalDrev)) * 100)} %`}
+        varde={(p) =>
+          `${Math.round((p.antal / Math.max(1, hund.antalDrev)) * 100)} %`
+        }
+      />
+      <Nyckeltal hund={hund} />
+      <SnittFordelning
+        etikett="SNITTDREV PER FÖRE"
+        poster={hund.utokad.perFore}
+        tomt="Inte angivet"
+      />
+      <SnittFordelning
+        etikett="SNITTDREV PER TEMPERATUR"
+        poster={hund.utokad.perTemperatur}
+        tomt="Okänd"
       />
     </Kort>
+  );
+}
+
+/** 2026-11-04: söktid, tappt, effektiv drevtid och fällt vilt. */
+function Nyckeltal({ hund }: { hund: HundStatistik }) {
+  const u = hund.utokad;
+  const rader: [string, string][] = [];
+  if (u.effektivDrevtid < hund.totalDrevtid) {
+    rader.push(["Effektiv drevtid", formateraVaraktighet(u.effektivDrevtid)]);
+  }
+  if (u.snittSoktid !== null) {
+    rader.push([
+      `Snitt söktid (${antalDrevText(u.antalMedSoktid)})`,
+      formateraVaraktighet(Math.round(u.snittSoktid)),
+    ]);
+  }
+  if (u.antalTappt > 0) {
+    rader.push([
+      "Tappt per drev",
+      (u.antalTappt / Math.max(1, hund.antalDrev)).toLocaleString("sv-SE", {
+        maximumFractionDigits: 1,
+      }),
+    ]);
+    if (u.atertagsgrad !== null) {
+      rader.push([
+        "Tog upp igen efter tappt",
+        `${Math.round(u.atertagsgrad * 100)} %`,
+      ]);
+    }
+  }
+  if (u.antalFallt > 0) {
+    rader.push([
+      "Fällt vilt",
+      `${u.antalFallt} st på ${antalDrevText(u.drevMedFallt)}`,
+    ]);
+  }
+  if (rader.length === 0) {
+    return null;
+  }
+  return (
+    <View style={styles.fordelning}>
+      <Etikett>NYCKELTAL</Etikett>
+      <View style={styles.staplar}>
+        {rader.map(([namn, varde]) => (
+          <View key={namn} style={styles.nyckelRad}>
+            <Txt variant="caption" farg="ink" style={styles.flex1}>
+              {namn}
+            </Txt>
+            <Txt variant="caption" farg="ink" style={styles.nyckelVarde}>
+              {varde}
+            </Txt>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Snittdrevtid per grupp. Visas bara om något drev har ett känt värde. */
+function SnittFordelning({
+  etikett,
+  poster,
+  tomt,
+}: {
+  etikett: string;
+  poster: Snittpost[];
+  tomt: string;
+}) {
+  if (!poster.some((p) => p.namn !== tomt)) {
+    return null;
+  }
+  const max = Math.max(1, ...poster.map((p) => p.snitt));
+  return (
+    <Fordelning
+      etikett={etikett}
+      poster={poster.map((p) => ({ namn: p.namn, antal: p.snitt }))}
+      andel={(p) => p.antal / max}
+      varde={(p) => `${Math.round(p.antal / 60)} min`}
+      vardeBredd={64}
+    />
   );
 }
 
@@ -193,11 +301,13 @@ function Fordelning({
   poster,
   andel,
   varde,
+  vardeBredd,
 }: {
   etikett: string;
   poster: Fordelningspost[];
   andel: (p: Fordelningspost) => number;
   varde: (p: Fordelningspost) => string;
+  vardeBredd?: number;
 }) {
   const f = useFarger();
   if (poster.length === 0) {
@@ -214,18 +324,33 @@ function Fordelning({
             accessible
             accessibilityLabel={`${p.namn}: ${varde(p)}`}
           >
-            <Txt variant="caption" farg="ink" style={styles.stapelNamn} numberOfLines={1}>
+            <Txt
+              variant="caption"
+              farg="ink"
+              style={styles.stapelNamn}
+              numberOfLines={1}
+            >
               {p.namn}
             </Txt>
             <View style={[styles.spar, { backgroundColor: f.surface300 }]}>
               <View
                 style={[
                   styles.stapel,
-                  { backgroundColor: f.frost, width: `${Math.max(2, Math.round(andel(p) * 100))}%` },
+                  {
+                    backgroundColor: f.frost,
+                    width: `${Math.max(2, Math.round(andel(p) * 100))}%`,
+                  },
                 ]}
               />
             </View>
-            <Txt variant="caption" farg="ink" style={styles.stapelVarde}>
+            <Txt
+              variant="caption"
+              farg="ink"
+              style={[
+                styles.stapelVarde,
+                vardeBredd ? { width: vardeBredd } : null,
+              ]}
+            >
               {varde(p)}
             </Txt>
           </View>
@@ -248,6 +373,8 @@ const styles = StyleSheet.create({
   stapelNamn: { width: 92, fontSize: 14, lineHeight: 20 },
   spar: { flex: 1, height: 12, borderRadius: 6, overflow: "hidden" },
   stapel: { height: 12, borderRadius: 6 },
+  nyckelRad: { flexDirection: "row", alignItems: "center", gap: avstand.s3 },
+  nyckelVarde: { textAlign: "right", fontVariant: ["tabular-nums"] },
   stapelVarde: {
     width: 44,
     textAlign: "right",

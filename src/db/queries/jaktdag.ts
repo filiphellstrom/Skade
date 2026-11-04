@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { randomUUID } from "../../utils/uuid";
-import type { Jaktdag, Uuid } from "../types";
+import type { Fore, Jaktdag, Uuid } from "../types";
 
 /**
  * SELECT-fragment delat av alla frågor som returnerar en hel Jaktdag.
@@ -11,7 +11,8 @@ import type { Jaktdag, Uuid } from "../types";
  */
 const JAKTDAG_MED_JAKTMARK = `
   SELECT j.id, j.profilId, j.datum, j.jaktmarkId, m.namn AS jaktmark,
-         j.aktivHundId, j.status, j.avslutadAt, j.createdAt, j.updatedAt
+         j.aktivHundId, j.status, j.avslutadAt, j.fore, j.anteckning,
+         j.createdAt, j.updatedAt
   FROM Jaktdag j
   JOIN Jaktmark m ON m.id = j.jaktmarkId
 `;
@@ -28,15 +29,28 @@ const JAKTDAG_MED_JAKTMARK = `
  */
 export async function skapaJaktdag(
   db: SQLiteDatabase,
-  params: { profilId: Uuid; datum: number; jaktmarkId: Uuid },
+  params: {
+    profilId: Uuid;
+    datum: number;
+    jaktmarkId: Uuid;
+    fore?: Fore | null;
+  },
 ): Promise<Jaktdag> {
   const id = randomUUID();
   const now = Math.floor(Date.now() / 1000);
 
   await db.runAsync(
-    `INSERT INTO Jaktdag (id, profilId, datum, jaktmarkId, aktivHundId, status, avslutadAt, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, NULL, 'pagar', NULL, ?, ?)`,
-    [id, params.profilId, params.datum, params.jaktmarkId, now, now],
+    `INSERT INTO Jaktdag (id, profilId, datum, jaktmarkId, aktivHundId, status, avslutadAt, fore, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, NULL, 'pagar', NULL, ?, ?, ?)`,
+    [
+      id,
+      params.profilId,
+      params.datum,
+      params.jaktmarkId,
+      params.fore ?? null,
+      now,
+      now,
+    ],
   );
 
   const skapad = await hamtaJaktdag(db, id);
@@ -70,7 +84,7 @@ export async function hamtaJaktdag(
  * man tillbaka dit istället för till timern.
  *
  * Appen tillåter bara en pågående jaktdag i taget (beslutat 2026-08-23) -
- * det är inte en databasbegränsning, bara en regel huvudskärmens UI följer
+ * det är inte en databasbegransning, bara en regel huvudskärmens UI följer
  * genom att dölja "Ny jaktdag" så länge en redan pågår. ORDER BY/LIMIT är
  * ett skyddsnät om det ändå skulle finnas fler någon gång.
  */
@@ -150,12 +164,69 @@ export async function raderaJaktdag(
     throw new Error("Jaktdagen hittades inte.");
   }
   if (jaktdag.status !== "avslutad") {
-    throw new Error("Kan inte radera en pågående jaktdag - avsluta den på Hem först.");
+    throw new Error(
+      "Kan inte radera en pågående jaktdag - avsluta den på Hem först.",
+    );
   }
 
   await db.withTransactionAsync(async () => {
+    // Migration 0006-0008: händelser, väder och fällt vilt hör till dagen.
+    await db.runAsync("DELETE FROM DrevHandelse WHERE jaktdagId = ?", [
+      jaktdagId,
+    ]);
+    await db.runAsync("DELETE FROM Vader WHERE jaktdagId = ?", [jaktdagId]);
+    await db.runAsync("DELETE FROM FalltVilt WHERE jaktdagId = ?", [jaktdagId]);
     await db.runAsync("DELETE FROM Drev WHERE jaktdagId = ?", [jaktdagId]);
-    await db.runAsync("DELETE FROM JaktdagHund WHERE jaktdagId = ?", [jaktdagId]);
+    await db.runAsync("DELETE FROM JaktdagHund WHERE jaktdagId = ?", [
+      jaktdagId,
+    ]);
     await db.runAsync("DELETE FROM Jaktdag WHERE id = ?", [jaktdagId]);
   });
+}
+
+/** Migration 0007: sätter jaktdagens före (null = inte angivet). */
+export async function settFore(
+  db: SQLiteDatabase,
+  jaktdagId: Uuid,
+  fore: Fore | null,
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await db.runAsync("UPDATE Jaktdag SET fore = ?, updatedAt = ? WHERE id = ?", [
+    fore,
+    now,
+    jaktdagId,
+  ]);
+}
+
+/**
+ * Migration 0007: senast angivna före på samma jaktmark inom `dagar`
+ * dagar - förslag när en ny jaktdag startas (före ändras sällan över
+ * ett par dagar). NULL om inget finns.
+ */
+export async function hamtaSenasteFore(
+  db: SQLiteDatabase,
+  jaktmarkId: Uuid,
+  dagar = 3,
+): Promise<Fore | null> {
+  const grans = Math.floor(Date.now() / 1000) - dagar * 86400;
+  const rad = await db.getFirstAsync<{ fore: Fore | null }>(
+    `SELECT fore FROM Jaktdag
+     WHERE jaktmarkId = ? AND fore IS NOT NULL AND datum >= ?
+     ORDER BY datum DESC, createdAt DESC LIMIT 1`,
+    [jaktmarkId, grans],
+  );
+  return rad?.fore ?? null;
+}
+
+/** Migration 0008: jaktdagboken. Tom text sparas som NULL. */
+export async function settAnteckning(
+  db: SQLiteDatabase,
+  jaktdagId: Uuid,
+  anteckning: string,
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await db.runAsync(
+    "UPDATE Jaktdag SET anteckning = ?, updatedAt = ? WHERE id = ?",
+    [anteckning.trim() || null, now, jaktdagId],
+  );
 }

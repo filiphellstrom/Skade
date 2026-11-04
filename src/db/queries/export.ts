@@ -1,8 +1,15 @@
 import type { SQLiteDatabase } from "expo-sqlite";
-import type { UnixTimestamp, Uuid } from "../types";
+import type { Fore, UnixTimestamp, Uuid } from "../types";
 
 /** En rad i CSV-exporten - ett stoppat drev plus jaktdagens datum/jaktmark. */
 export interface ExportDrevRad {
+  id: Uuid;
+  jaktdagId: Uuid;
+  hundId: Uuid;
+  fore: Fore | null;
+  temperatur: number | null;
+  vindHastighet: number | null;
+  vindRiktning: number | null;
   datum: UnixTimestamp;
   jaktmark: string;
   hundNamn: string;
@@ -29,6 +36,13 @@ export async function hamtaAllaDrevForExport(
 ): Promise<ExportDrevRad[]> {
   return db.getAllAsync<ExportDrevRad>(
     `SELECT
+       d.id AS id,
+       d.jaktdagId AS jaktdagId,
+       d.hundId AS hundId,
+       j.fore AS fore,
+       v.temperatur AS temperatur,
+       v.vindHastighet AS vindHastighet,
+       v.vindRiktning AS vindRiktning,
        j.datum AS datum,
        m.namn AS jaktmark,
        h.namn AS hundNamn,
@@ -41,6 +55,7 @@ export async function hamtaAllaDrevForExport(
      JOIN Hund h ON h.id = d.hundId
      JOIN Jaktdag j ON j.id = d.jaktdagId
      JOIN Jaktmark m ON m.id = j.jaktmarkId
+     LEFT JOIN Vader v ON v.id = (SELECT v2.id FROM Vader v2 WHERE v2.drevId = d.id ORDER BY v2.createdAt DESC LIMIT 1)
      WHERE h.profilId = ? AND d.endTimestamp IS NOT NULL
      ORDER BY j.datum ASC, d.startTimestamp ASC`,
     [profilId],

@@ -55,7 +55,7 @@ interface ListradProps {
   extra?: ReactNode;
   hoger?: string;
   hogerUnder?: string;
-  hogerFarg?: "ink" | "brand" | "inkMuted";
+  hogerFarg?: "ink" | "brand" | "inkMuted" | "signal";
   /** Ikon i en mjuk grön ruta till vänster (t.ex. jaktmarker). */
   ikon?: "jaktmark" | "hund" | "dokument";
   /** Rund bild till vänster (hundlistan), initial om bild saknas. */

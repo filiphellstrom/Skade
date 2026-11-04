@@ -1,15 +1,17 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
-import { hamtaJaktdag, raderaJaktdag } from "@/db/queries/jaktdag";
+import { hamtaJaktdag, raderaJaktdag, settAnteckning, settFore } from "@/db/queries/jaktdag";
+import { hamtaFalltViltForJaktdag } from "@/db/queries/fallt";
+import { FORE_VAL } from "@/utils/vader";
 import { hamtaDrevMedHundnamnForJaktdag } from "@/db/queries/statistik";
-import type { DrevMedHundnamn, Jaktdag } from "@/db/types";
+import type { DrevMedHundnamn, FalltVilt, Fore, Jaktdag } from "@/db/types";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { formateraTid } from "@/hooks/useElapsedTime";
 import { useFarger } from "@/theme/TemaContext";
 import { Kort, Listrad } from "@/components/ui/Kort";
-import { Etikett, Felrad, Skarm, VarningsChip } from "@/components/ui/Delar";
+import { Etikett, Falt, Felrad, Skarm, ValChip, VarningsChip } from "@/components/ui/Delar";
 import { Knapp } from "@/components/ui/Knapp";
 import { InlineBanner } from "@/components/InlineBanner";
 import { avstand } from "@/theme/tokens";
@@ -40,6 +42,11 @@ export default function JaktdagHistorik() {
   const [raderar, setRaderar] = useState(false);
   const [visaBekraftelse, setVisaBekraftelse] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
+  // 2026-11-04: före, jaktdagbok och fällt vilt.
+  const [fallt, setFallt] = useState<FalltVilt[]>([]);
+  const [anteckning, setAnteckningText] = useState("");
+  const [sparadAnteckning, setSparadAnteckning] = useState("");
+  const [sparar, setSparar] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -47,11 +54,15 @@ export default function JaktdagHistorik() {
 
       (async () => {
         const db = await getDatabase();
-        const [j, d] = await Promise.all([
+        const [j, d, f] = await Promise.all([
           hamtaJaktdag(db, jaktdagId),
           hamtaDrevMedHundnamnForJaktdag(db, jaktdagId),
+          hamtaFalltViltForJaktdag(db, jaktdagId),
         ]);
         if (!avbruten) {
+          setFallt(f);
+          setAnteckningText(j?.anteckning ?? "");
+          setSparadAnteckning(j?.anteckning ?? "");
           setJaktdag(j);
           setDrev(d);
           setVisaBekraftelse(false);
@@ -90,6 +101,28 @@ export default function JaktdagHistorik() {
 
   const kanRadera = jaktdag.status === "avslutad";
 
+  async function valjFore(varde: Fore) {
+    if (!jaktdag) return;
+    const ny = jaktdag.fore === varde ? null : varde;
+    const db = await getDatabase();
+    await settFore(db, jaktdagId, ny);
+    setJaktdag({ ...jaktdag, fore: ny });
+  }
+
+  async function sparaAnteckning() {
+    if (sparar) return;
+    setSparar(true);
+    try {
+      const db = await getDatabase();
+      await settAnteckning(db, jaktdagId, anteckning);
+      setSparadAnteckning(anteckning);
+    } catch (e) {
+      setFel(e instanceof Error ? e.message : "Kunde inte spara anteckningen.");
+    } finally {
+      setSparar(false);
+    }
+  }
+
   const avslutade = drev.filter((d) => d.endTimestamp !== null);
   const totalDrevtid = avslutade.reduce((summa, d) => summa + (d.duration ?? 0), 0);
 
@@ -105,13 +138,13 @@ export default function JaktdagHistorik() {
               titel="Radera jaktdag"
               variant="faraLiten"
               fullBredd
-              onPress={() => (drev.length > 0 ? setVisaBekraftelse(true) : radera())}
+              onPress={() => (drev.length > 0 || fallt.length > 0 ? setVisaBekraftelse(true) : radera())}
               laddar={raderar}
             />
           ) : (
             <>
               <InlineBanner
-                text={`Jaktdagen och ${antalDrevText(drev.length)} raderas permanent. Det går inte att ångra.`}
+                text={`Jaktdagen och ${antalDrevText(drev.length)} raderas permanent, med händelser, väder och fällt vilt. Det går inte att ångra.`}
                 typ="error"
               />
               <Knapp titel="Ja, radera permanent" variant="fara" onPress={radera} laddar={raderar} />
@@ -159,11 +192,72 @@ export default function JaktdagHistorik() {
           </Kort>
         </View>
       )}
+
+      <View>
+        <Etikett>FÖRE</Etikett>
+        <View style={styles.chips}>
+          {FORE_VAL.map((f) => (
+            <ValChip key={f.varde} titel={f.titel} vald={jaktdag.fore === f.varde} hojd={48} onPress={() => valjFore(f.varde)} />
+          ))}
+        </View>
+      </View>
+
+      <View>
+        <Etikett>FÄLLT VILT</Etikett>
+        {fallt.length > 0 && (
+          <Kort lista>
+            {fallt.map((v, i) => (
+              <Listrad
+                key={v.id}
+                forsta={i === 0}
+                titel={v.antal > 1 ? `${v.art} ×${v.antal}` : v.art}
+                undertitel={
+                  [
+                    new Date(v.tidpunkt * 1000).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" }),
+                    v.skytt,
+                    v.drevId ? null : "utan drev",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                }
+                onPress={() => router.push(`/jaktdag/${jaktdagId}/fallt/${v.id}`)}
+              />
+            ))}
+          </Kort>
+        )}
+        <Knapp
+          variant="text"
+          ikon="plus"
+          titel="Lägg till fällt vilt"
+          onPress={() => router.push(`/jaktdag/${jaktdagId}/fallt/ny`)}
+        />
+      </View>
+
+      <View style={styles.block}>
+        <Etikett>JAKTDAGBOK</Etikett>
+        <Falt
+          value={anteckning}
+          onChangeText={setAnteckningText}
+          placeholder="Hur var dagen? Vad hände?"
+          multiline
+          style={styles.anteckning}
+          textAlignVertical="top"
+        />
+        {anteckning !== sparadAnteckning && (
+          <Knapp titel="Spara anteckning" variant="sekundar" onPress={sparaAnteckning} laddar={sparar} />
+        )}
+      </View>
+
+      {Platform.OS !== "web" && avslutade.length > 0 && (
+        <Knapp variant="sekundar" ikon="dela" titel="Dela som bild" onPress={() => router.push(`/dela?typ=jaktdag&id=${jaktdagId}`)} />
+      )}
     </Skarm>
   );
 }
 
 const styles = StyleSheet.create({
   block: { gap: avstand.s3 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: avstand.s2 },
+  anteckning: { minHeight: 120, paddingTop: avstand.s3 },
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
 });

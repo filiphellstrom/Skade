@@ -46,6 +46,12 @@ export async function startaDrev(
 export async function stoppaDrev(
   db: SQLiteDatabase,
   drevId: Uuid,
+  /**
+   * 2026-11-04: valfri sluttid - används när drevet stoppas medan det står
+   * i tappt och man svarar att drevet slutade vid tappten. Måste vara
+   * efter starttiden, annars används nu.
+   */
+  sluttid?: UnixTimestamp,
 ): Promise<Drev> {
   const drev = await db.getFirstAsync<Drev>("SELECT * FROM Drev WHERE id = ?", [
     drevId,
@@ -59,14 +65,26 @@ export async function stoppaDrev(
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const duration = now - drev.startTimestamp;
+  const slut =
+    sluttid !== undefined && sluttid > drev.startTimestamp && sluttid <= now
+      ? sluttid
+      : now;
+  const duration = slut - drev.startTimestamp;
 
-  await db.runAsync(
-    "UPDATE Drev SET endTimestamp = ?, duration = ?, updatedAt = ? WHERE id = ?",
-    [now, duration, now, drevId],
-  );
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      "UPDATE Drev SET endTimestamp = ?, duration = ?, updatedAt = ? WHERE id = ?",
+      [slut, duration, now, drevId],
+    );
+    // Händelser efter den bakåtdaterade sluttiden (t.ex. ett återupptag
+    // som registrerades efter tappten) hör inte längre till drevet.
+    await db.runAsync(
+      "DELETE FROM DrevHandelse WHERE drevId = ? AND tidpunkt > ?",
+      [drevId, slut],
+    );
+  });
 
-  return { ...drev, endTimestamp: now, duration, updatedAt: now };
+  return { ...drev, endTimestamp: slut, duration, updatedAt: now };
 }
 
 /**
@@ -104,10 +122,14 @@ export async function uppdateraDrev(
     );
   }
 
-  if (params.startTimestamp !== undefined || params.endTimestamp !== undefined) {
-    const drev = await db.getFirstAsync<Drev>("SELECT * FROM Drev WHERE id = ?", [
-      drevId,
-    ]);
+  if (
+    params.startTimestamp !== undefined ||
+    params.endTimestamp !== undefined
+  ) {
+    const drev = await db.getFirstAsync<Drev>(
+      "SELECT * FROM Drev WHERE id = ?",
+      [drevId],
+    );
     if (!drev) {
       throw new Error(`Drev med id ${drevId} hittades inte.`);
     }
@@ -213,7 +235,10 @@ export async function hamtaDrevMedHundnamn(
  * arkiveraHund()/raderaHund() - normalt inte möjligt att nå hit för ett
  * pågående drev, men skyddar mot det ändå).
  */
-export async function raderaDrev(db: SQLiteDatabase, drevId: Uuid): Promise<void> {
+export async function raderaDrev(
+  db: SQLiteDatabase,
+  drevId: Uuid,
+): Promise<void> {
   const drev = await db.getFirstAsync<Drev>("SELECT * FROM Drev WHERE id = ?", [
     drevId,
   ]);
@@ -225,7 +250,17 @@ export async function raderaDrev(db: SQLiteDatabase, drevId: Uuid): Promise<void
     throw new Error("Kan inte radera ett pågående drev.");
   }
 
-  await db.runAsync("DELETE FROM Drev WHERE id = ?", [drevId]);
+  await db.withTransactionAsync(async () => {
+    // Migration 0006-0008: drevets händelser och väder går bort med drevet.
+    // Fällt vilt ligger kvar på jaktdagen (drevId NULL) - viltet raderas
+    // aldrig automatiskt.
+    await db.runAsync("DELETE FROM DrevHandelse WHERE drevId = ?", [drevId]);
+    await db.runAsync("DELETE FROM Vader WHERE drevId = ?", [drevId]);
+    await db.runAsync("UPDATE FalltVilt SET drevId = NULL WHERE drevId = ?", [
+      drevId,
+    ]);
+    await db.runAsync("DELETE FROM Drev WHERE id = ?", [drevId]);
+  });
 }
 
 /** Hämtar senaste (nyast startade) drevet för en jaktdag, oavsett status. */

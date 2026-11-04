@@ -3,6 +3,10 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { hamtaAllaDrevForExport } from "@/db/queries/export";
+import { hamtaFalltViltForProfil } from "@/db/queries/fallt";
+import { hamtaHandelserForProfil } from "@/db/queries/handelse";
+import { soktid, tapptTid } from "@/utils/drevhandelser";
+import { foreNamn } from "@/utils/vader";
 import type { UnixTimestamp, Uuid } from "@/db/types";
 import { tillCsv } from "./csv";
 
@@ -50,24 +54,104 @@ export async function exporteraHistorikSomCsv(
   db: SQLiteDatabase,
   profilId: Uuid,
 ): Promise<void> {
-  const rader = await hamtaAllaDrevForExport(db, profilId);
+  const [rader, handelser] = await Promise.all([
+    hamtaAllaDrevForExport(db, profilId),
+    hamtaHandelserForProfil(db, profilId),
+  ]);
+  const min = (sek: number | null) => (sek === null ? "" : (sek / 60).toFixed(1));
+  const tal = (v: number | null) => (v === null ? "" : String(Math.round(v)));
 
+  // 2026-11-04: söktid, tappt, effektiv drevtid, före och väder.
   const csv = tillCsv(
-    ["Datum", "Jaktmark", "Hund", "Start", "Slut", "Drevtid (min)", "Viltart", "Utfall"],
-    rader.map((r) => [
-      formateraDatumISO(r.datum),
-      r.jaktmark,
-      r.hundNamn,
-      formateraKlockslag(r.startTimestamp),
-      formateraKlockslag(r.endTimestamp),
-      (r.duration / 60).toFixed(1),
-      r.species ?? "",
-      r.outcome ?? "",
-    ]),
+    [
+      "Datum",
+      "Jaktmark",
+      "Hund",
+      "Start",
+      "Slut",
+      "Drevtid (min)",
+      "Viltart",
+      "Utfall",
+      "Söktid (min)",
+      "Tappt (min)",
+      "Effektiv drevtid (min)",
+      "Före",
+      "Temperatur (°C)",
+      "Vind (m/s)",
+      "Vindriktning (°)",
+    ],
+    rader.map((r) => {
+      const dagens = handelser.filter((h) => h.jaktdagId === r.jaktdagId);
+      const egna = dagens.filter((h) => h.drevId === r.id);
+      const tappt = tapptTid(egna, r.endTimestamp);
+      const sok = soktid(
+        r,
+        dagens,
+        rader.filter((d) => d.jaktdagId === r.jaktdagId),
+      );
+      return [
+        formateraDatumISO(r.datum),
+        r.jaktmark,
+        r.hundNamn,
+        formateraKlockslag(r.startTimestamp),
+        formateraKlockslag(r.endTimestamp),
+        (r.duration / 60).toFixed(1),
+        r.species ?? "",
+        r.outcome ?? "",
+        min(sok),
+        min(tappt),
+        min(Math.max(0, r.duration - tappt)),
+        foreNamn(r.fore) ?? "",
+        tal(r.temperatur),
+        tal(r.vindHastighet),
+        tal(r.vindRiktning),
+      ];
+    }),
   );
 
   const filnamn = `skade-historik-${formateraDatumISO(Math.floor(Date.now() / 1000))}.csv`;
+  await delaCsv(csv, filnamn, "Dela historik");
+}
 
+/** 2026-11-04: allt fällt vilt som CSV, en rad per fällning. */
+export async function exporteraFalltViltSomCsv(
+  db: SQLiteDatabase,
+  profilId: Uuid,
+): Promise<void> {
+  const rader = await hamtaFalltViltForProfil(db, profilId);
+  const csv = tillCsv(
+    [
+      "Datum",
+      "Klockslag",
+      "Jaktmark",
+      "Art",
+      "Antal",
+      "Kön",
+      "Ålder",
+      "Slaktvikt (kg)",
+      "Skytt",
+      "Hund",
+      "Kommentar",
+    ],
+    rader.map((r) => [
+      formateraDatumISO(r.tidpunkt),
+      formateraKlockslag(r.tidpunkt),
+      r.jaktmark,
+      r.art,
+      String(r.antal),
+      r.kon === "hane" ? "Hane" : r.kon === "hona" ? "Hona" : "",
+      r.alder === "ungdjur" ? "Ungdjur" : r.alder === "vuxen" ? "Vuxen" : "",
+      r.vikt === null ? "" : String(r.vikt).replace(".", ","),
+      r.skytt ?? "",
+      r.hundNamn ?? "",
+      r.kommentar ?? "",
+    ]),
+  );
+  const datum = formateraDatumISO(Math.floor(Date.now() / 1000));
+  await delaCsv(csv, `skade-fallt-vilt-${datum}.csv`, "Dela fällt vilt");
+}
+
+async function delaCsv(csv: string, filnamn: string, dialogTitle: string): Promise<void> {
   if (Platform.OS === "web") {
     laddaNerPaWeb(csv, filnamn);
     return;
@@ -82,7 +166,7 @@ export async function exporteraHistorikSomCsv(
   }
   await Sharing.shareAsync(file.uri, {
     mimeType: "text/csv",
-    dialogTitle: "Dela historik",
+    dialogTitle,
   });
 }
 

@@ -57,6 +57,9 @@ export interface Jaktmark {
   profilId: Uuid;
   namn: string;
   wehuntId: string | null;
+  /** Migration 0007. Ungefärlig position (2 decimaler), NULL = okänd. */
+  lat: number | null;
+  lon: number | null;
   createdAt: UnixTimestamp;
   updatedAt: UnixTimestamp;
 }
@@ -85,6 +88,10 @@ export interface Jaktdag {
   aktivHundId: Uuid | null;
   status: JaktdagStatus;
   avslutadAt: UnixTimestamp | null;
+  /** Migration 0007. Manuellt valt före, NULL = inte angivet. */
+  fore: Fore | null;
+  /** Migration 0008. Jaktdagboken - fritext, NULL = ingen anteckning. */
+  anteckning: string | null;
   createdAt: UnixTimestamp;
   updatedAt: UnixTimestamp;
 }
@@ -157,6 +164,33 @@ export interface HundStatistik {
   totalDrevtid: number;
   viltartFordelning: Fordelningspost[];
   utfallFordelning: Fordelningspost[];
+  /** 2026-11-04: drevhändelser, väder/före och fällt vilt. */
+  utokad: UtokadHundStatistik;
+}
+
+/** Snittdrevtid för en grupp drev (före eller temperaturintervall). */
+export interface Snittpost {
+  namn: string;
+  antal: number;
+  /** Snittdrevtid i sekunder. */
+  snitt: number;
+}
+
+export interface UtokadHundStatistik {
+  /** Total drevtid minus tappt, sekunder. */
+  effektivDrevtid: number;
+  /** Snitt söktid (släpp till upptag) för drev med släpp, sekunder. */
+  snittSoktid: number | null;
+  antalMedSoktid: number;
+  antalTappt: number;
+  /** Andel tappt som följdes av ett återupptag (0-1), null utan tappt. */
+  atertagsgrad: number | null;
+  perFore: Snittpost[];
+  perTemperatur: Snittpost[];
+  /** Antal fällda djur (summa av FalltVilt.antal) kopplade till hundens drev. */
+  antalFallt: number;
+  /** Antal drev som har minst ett fällt vilt kopplat. */
+  drevMedFallt: number;
 }
 
 /** Migration 0005: dokument på profilen. */
@@ -176,6 +210,71 @@ export interface Dokument {
   /** 7, 30 eller 60. */
   paminnelseDagar: number;
   notisId: string | null;
+  createdAt: UnixTimestamp;
+  updatedAt: UnixTimestamp;
+}
+
+/** Migration 0006: händelser runt och inuti ett drev. */
+export type HandelseTyp = "slapp" | "tappt" | "atertag" | "kopplad";
+
+export interface DrevHandelse {
+  id: Uuid;
+  jaktdagId: Uuid;
+  hundId: Uuid;
+  /** Satt för tappt/atertag, NULL för slapp/kopplad. */
+  drevId: Uuid | null;
+  typ: HandelseTyp;
+  tidpunkt: UnixTimestamp;
+  createdAt: UnixTimestamp;
+  updatedAt: UnixTimestamp;
+}
+
+/** Migration 0007: före, valt manuellt per jaktdag. */
+export type Fore = "barmark" | "frost" | "blott" | "sparsno" | "djupsno" | "skare";
+
+export type VaderKalla = "smhi" | "manuell";
+
+/** Migration 0007: väder vid ett drevs start (SMHI-prognos för närmaste timme). */
+export interface Vader {
+  id: Uuid;
+  jaktdagId: Uuid;
+  drevId: Uuid | null;
+  tidpunkt: UnixTimestamp;
+  /** °C */
+  temperatur: number | null;
+  /** m/s */
+  vindHastighet: number | null;
+  /** m/s */
+  vindByar: number | null;
+  /** Grader, 0 = nord (varifrån vinden blåser). */
+  vindRiktning: number | null;
+  /** mm/h */
+  nederbord: number | null;
+  kalla: VaderKalla;
+  lat: number | null;
+  lon: number | null;
+  createdAt: UnixTimestamp;
+  updatedAt: UnixTimestamp;
+}
+
+/** Migration 0008. */
+export type Kon = "hane" | "hona";
+export type Alder = "ungdjur" | "vuxen";
+
+export interface FalltVilt {
+  id: Uuid;
+  jaktdagId: Uuid;
+  drevId: Uuid | null;
+  hundId: Uuid | null;
+  art: string;
+  antal: number;
+  kon: Kon | null;
+  alder: Alder | null;
+  skytt: string | null;
+  tidpunkt: UnixTimestamp;
+  /** kg, slaktvikt */
+  vikt: number | null;
+  kommentar: string | null;
   createdAt: UnixTimestamp;
   updatedAt: UnixTimestamp;
 }

@@ -65,6 +65,39 @@ const JAKTDAGEN: Amne[] = [
     ],
   },
   {
+    titel: "Släppt, söker, tappt och kopplad",
+    stycken: [
+      "Innan ett drev kan du trycka Släppt när du släpper hunden. Timern visar då hur länge hunden har sökt, och när du trycker Starta drev sparas söktiden. Tar hunden inte upp trycker du Kopplad när du har kopplat den.",
+      "Under ett drev finns knappen Tappt. Tryck den när hunden tappar, och Tog upp igen när den tar upp igen. Timern visar hur länge drevet stått i tappt.",
+      "Stoppar du drevet medan det står i tappt frågar appen om drevet slutade vid tappten. Svarar du ja blir sluttiden tidpunkten för tappten.",
+      "Allt det här är frivilligt. Vill du bara ta tid trycker du Starta drev och Stoppa drev som vanligt. I drevvyn ser du alla händelser och kan ta bort den som blev fel.",
+    ],
+  },
+  {
+    titel: "Väder och före",
+    stycken: [
+      "När ett drev startar hämtar Skade vädret (temperatur och vind) från SMHI för jaktmarkens ungefärliga position. Saknas täckning försöker appen igen när du öppnar timern, i upp till tre timmar efter drevstarten.",
+      "Jaktmarkens position sätts första gången du startar en jaktdag där och du har gett Skade tillgång till platstjänster. Den avrundas till ungefär en kilometer, och du kan ändra eller ta bort den under Jaktmarker.",
+      "Före (barmark, frost, blött, spårsnö, djup snö eller skare) väljer du själv när du startar jaktdagen, eller i efterhand under Historik. Appen föreslår samma före som senast på samma mark om det var inom tre dagar.",
+      "Under Statistik ser du snittdrevtid per före och per temperatur. Väderdata kommer från SMHI.",
+    ],
+  },
+  {
+    titel: "Fällt vilt och jaktdagbok",
+    stycken: [
+      "Sätter du utfallet Fälld på ett drev och sparar frågar appen direkt om det fällda viltet: art, antal och skytt, och för älg och kronhjort även kön och ålder. Tryck Hoppa över om du vill fylla i senare.",
+      "Vilt som fälls utan drev, till exempel på pass, lägger du till på jaktdagen under Historik.",
+      "Under Historik kan du också skriva en anteckning om dagen i jaktdagboken.",
+      "Under Inställningar kan du skapa en säsongsrapport som PDF för ett jaktår (1 juli–30 juni) och exportera allt fällt vilt till en CSV-fil. Rapporten är ett underlag för jaktlagets rapportering i Viltdata.",
+    ],
+  },
+  {
+    titel: "Dela ett drev eller en jaktdag som bild",
+    stycken: [
+      "Tryck Dela som bild i drevvyn eller på en jaktdag i Historik. Du ser bilden innan du delar och kan välja om jaktmarken och hundens bild ska synas. Jaktmarken är dold från början.",
+    ],
+  },
+  {
     titel: "Efter ett drev: viltart och utfall",
     stycken: [
       "När du stoppar ett drev kan du ange viltart och utfall direkt. Tryck på ett valt alternativ igen för att ta bort valet.",

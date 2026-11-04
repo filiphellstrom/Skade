@@ -85,7 +85,14 @@ export async function uppdateraHund(
   await db.runAsync(
     `UPDATE Hund SET namn = ?, ras = ?, fodelsedatum = ?, kommentar = ?, updatedAt = ?
      WHERE id = ?`,
-    [params.namn, params.ras, params.fodelsedatum, params.kommentar, now, hundId],
+    [
+      params.namn,
+      params.ras,
+      params.fodelsedatum,
+      params.kommentar,
+      now,
+      hundId,
+    ],
   );
 }
 
@@ -96,7 +103,11 @@ export async function uppdateraHundBild(
   bild: string | null,
 ): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
-  await db.runAsync("UPDATE Hund SET bild = ?, updatedAt = ? WHERE id = ?", [bild, now, hundId]);
+  await db.runAsync("UPDATE Hund SET bild = ?, updatedAt = ? WHERE id = ?", [
+    bild,
+    now,
+    hundId,
+  ]);
 }
 
 /**
@@ -181,6 +192,20 @@ export async function raderaHund(
   }
 
   await db.withTransactionAsync(async () => {
+    // Migration 0006-0008: hundens händelser och väder för dess drev går
+    // bort, fällt vilt ligger kvar på jaktdagen utan hund/drev.
+    await db.runAsync("DELETE FROM DrevHandelse WHERE hundId = ?", [hundId]);
+    await db.runAsync(
+      "DELETE FROM Vader WHERE drevId IN (SELECT id FROM Drev WHERE hundId = ?)",
+      [hundId],
+    );
+    await db.runAsync(
+      "UPDATE FalltVilt SET drevId = NULL WHERE drevId IN (SELECT id FROM Drev WHERE hundId = ?)",
+      [hundId],
+    );
+    await db.runAsync("UPDATE FalltVilt SET hundId = NULL WHERE hundId = ?", [
+      hundId,
+    ]);
     await db.runAsync("DELETE FROM Drev WHERE hundId = ?", [hundId]);
     await db.runAsync("DELETE FROM JaktdagHund WHERE hundId = ?", [hundId]);
     await db.runAsync(

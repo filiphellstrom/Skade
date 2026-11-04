@@ -2,13 +2,15 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
-import { hamtaJaktmark, uppdateraJaktmark } from "@/db/queries/jaktmark";
+import { hamtaJaktmark, settJaktmarkPosition, uppdateraJaktmark } from "@/db/queries/jaktmark";
+import { fragaOmPlats, hamtaPosition } from "@/utils/vader";
 import type { Jaktmark } from "@/db/types";
 import { useFarger } from "@/theme/TemaContext";
 import { avstand } from "@/theme/tokens";
 import { InlineBanner } from "@/components/InlineBanner";
 import { Knapp } from "@/components/ui/Knapp";
-import { Falt, Skarm, TillbakaKnapp } from "@/components/ui/Delar";
+import { Etikett, Falt, Skarm, TillbakaKnapp } from "@/components/ui/Delar";
+import { Kort } from "@/components/ui/Kort";
 import { Txt } from "@/components/ui/Txt";
 
 /**
@@ -23,6 +25,34 @@ export default function RedigeraJaktmark() {
   const [namn, setNamn] = useState("");
   const [sparar, setSparar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
+  const [hamtarPos, setHamtarPos] = useState(false);
+  const [posFel, setPosFel] = useState<string | null>(null);
+
+  // 2026-11-04: jaktmarkens ungefärliga position, för SMHI-vädret.
+  const andraPosition = async (anvand: boolean) => {
+    if (!mark || hamtarPos) return;
+    setPosFel(null);
+    setHamtarPos(true);
+    try {
+      const db = await getDatabase();
+      let pos: { lat: number; lon: number } | null = null;
+      if (anvand) {
+        if (!(await fragaOmPlats())) {
+          setPosFel("Skade har inte tillgång till platstjänster. Du kan slå på det i Inställningar på telefonen.");
+          return;
+        }
+        pos = await hamtaPosition();
+        if (!pos) {
+          setPosFel("Kunde inte hämta din position just nu. Försök igen.");
+          return;
+        }
+      }
+      await settJaktmarkPosition(db, mark.id, pos);
+      setMark(await hamtaJaktmark(db, mark.id));
+    } finally {
+      setHamtarPos(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -89,6 +119,34 @@ export default function RedigeraJaktmark() {
         </Txt>
         {fel && <InlineBanner text={fel} typ="error" />}
         <Knapp titel="Spara namn" onPress={spara} disabled={!kanSpara} laddar={sparar} />
+
+        <View>
+          <Etikett>POSITION FÖR VÄDRET</Etikett>
+          <Kort>
+            <Txt variant="body">
+              {mark.lat !== null && mark.lon !== null
+                ? `Ungefär ${mark.lat.toFixed(2)}, ${mark.lon.toFixed(2)}`
+                : "Ingen position än"}
+            </Txt>
+            <Txt variant="caption" farg="inkMuted" style={styles.hjalp}>
+              Används för att hämta vädret från SMHI till varje drev. Sätts automatiskt första gången
+              du startar en jaktdag här, avrundad till ungefär en kilometer. Stå på marken när du
+              uppdaterar den.
+            </Txt>
+            <View style={styles.posKnappar}>
+              <Knapp
+                variant="sekundar"
+                titel={mark.lat !== null ? "Uppdatera till min position" : "Använd min position"}
+                onPress={() => andraPosition(true)}
+                laddar={hamtarPos}
+              />
+              {mark.lat !== null && (
+                <Knapp variant="text" titel="Ta bort position" onPress={() => andraPosition(false)} disabled={hamtarPos} />
+              )}
+              {posFel && <InlineBanner text={posFel} typ="error" />}
+            </View>
+          </Kort>
+        </View>
       </Skarm>
     </KeyboardAvoidingView>
   );
@@ -98,4 +156,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   laddar: { flex: 1, justifyContent: "center", alignItems: "center" },
   topp: { gap: avstand.s4 },
+  hjalp: { marginTop: avstand.s2 },
+  posKnappar: { marginTop: avstand.s4, gap: avstand.s2 },
 });

@@ -4,6 +4,9 @@ import { sql as migration0002 } from "./migrations/0002_hund_arkiverad";
 import { sql as migration0003 } from "./migrations/0003_jaktmark";
 import { sql as migration0004 } from "./migrations/0004_jaktmark_skiftlage";
 import { sql as migration0005 } from "./migrations/0005_bilder_dokument";
+import { sql as migration0006 } from "./migrations/0006_drevhandelser";
+import { sql as migration0007 } from "./migrations/0007_vader_fore";
+import { sql as migration0008 } from "./migrations/0008_fallt_vilt";
 
 /**
  * Migrationsfiler i ordning. Varje post motsvarar en fil i ./migrations
@@ -18,6 +21,9 @@ const MIGRATIONS: { version: number; sql: string }[] = [
   { version: 3, sql: migration0003 },
   { version: 4, sql: migration0004 },
   { version: 5, sql: migration0005 },
+  { version: 6, sql: migration0006 },
+  { version: 7, sql: migration0007 },
+  { version: 8, sql: migration0008 },
 ];
 
 /**

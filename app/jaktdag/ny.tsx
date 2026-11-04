@@ -1,14 +1,16 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getDatabase } from "@/db/client";
-import { skapaJaktdag } from "@/db/queries/jaktdag";
+import { hamtaSenasteFore, skapaJaktdag } from "@/db/queries/jaktdag";
 import {
   hamtaEllerSkapaJaktmark,
   hamtaJaktmarkerMedSummering,
   namnNyckel,
 } from "@/db/queries/jaktmark";
-import type { JaktmarkMedSummering, Uuid } from "@/db/types";
+import type { Fore, JaktmarkMedSummering, Uuid } from "@/db/types";
+import { FORE_VAL, fragaOmPlats, positionForJaktmark } from "@/utils/vader";
+import { ValChip } from "@/components/ui/Delar";
 import { useProfil } from "@/contexts/ProfilContext";
 import { avstand } from "@/theme/tokens";
 import { SelectableCard } from "@/components/SelectableCard";
@@ -44,6 +46,25 @@ export default function NyJaktdag() {
   const [nyttNamn, setNyttNamn] = useState("");
   const [sparar, setSparar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
+  // 2026-11-04: före för dagen. Förslag = senaste före på samma mark
+  // inom 3 dagar, tills man själv tryckt på en chip.
+  const [fore, setFore] = useState<Fore | null>(null);
+  const [foreRord, setForeRord] = useState(false);
+
+  useEffect(() => {
+    if (foreRord || !val || val === NY) {
+      return;
+    }
+    let avbruten = false;
+    (async () => {
+      const db = await getDatabase();
+      const forslag = await hamtaSenasteFore(db, val);
+      if (!avbruten) setFore(forslag);
+    })();
+    return () => {
+      avbruten = true;
+    };
+  }, [val, foreRord]);
 
   useFocusEffect(
     useCallback(() => {
@@ -84,8 +105,12 @@ export default function NyJaktdag() {
         profilId: profil.id,
         datum: idagVidMidnatt(),
         jaktmarkId,
+        fore,
       });
       router.replace(`/jaktdag/${jaktdag.id}/valj-hund`);
+      // Platsbehörighet frågas här, aldrig mitt i ett drev. Saknar marken
+      // position sparas telefonens (avrundad) - används för SMHI-vädret.
+      void fragaOmPlats().then((ok) => (ok ? positionForJaktmark(db, jaktmarkId) : null));
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte skapa jaktdagen. Försök igen.");
       setSparar(false);
@@ -150,6 +175,24 @@ export default function NyJaktdag() {
           )}
         </View>
 
+        <View>
+          <Etikett>FÖRE (FRIVILLIGT)</Etikett>
+          <View style={styles.chips}>
+            {FORE_VAL.map((f) => (
+              <ValChip
+                key={f.varde}
+                titel={f.titel}
+                vald={fore === f.varde}
+                hojd={48}
+                onPress={() => {
+                  setForeRord(true);
+                  setFore((nu) => (nu === f.varde ? null : f.varde));
+                }}
+              />
+            ))}
+          </View>
+        </View>
+
         {fel && <InlineBanner text={fel} typ="error" />}
       </Skarm>
     </KeyboardAvoidingView>
@@ -161,4 +204,5 @@ const styles = StyleSheet.create({
   topp: { gap: avstand.s4 },
   lista: { gap: avstand.s2 },
   nytt: { marginTop: avstand.s3, gap: avstand.s2 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: avstand.s2 },
 });

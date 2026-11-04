@@ -4,7 +4,8 @@ import Constants from "expo-constants";
 import { router } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { useProfil } from "@/contexts/ProfilContext";
-import { exporteraHistorikSomCsv } from "@/utils/export";
+import { exporteraFalltViltSomCsv, exporteraHistorikSomCsv } from "@/utils/export";
+import { delaSasongsrapport, innevarandeJaktar, jaktar } from "@/utils/sasongsrapport";
 import { lasDiagnostik } from "@/liveActivity";
 import type { LasskarmDiagnostik } from "@/liveActivity";
 import { useTema } from "@/theme/TemaContext";
@@ -27,6 +28,41 @@ export default function Installningar() {
   const { profil } = useProfil();
   const [exporterar, setExporterar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
+  // 2026-11-04: säsongsrapport och export av fällt vilt.
+  const nuvarande = innevarandeJaktar();
+  const [rapportAr, setRapportAr] = useState<"nu" | "forra">("nu");
+  const [skaparRapport, setSkaparRapport] = useState(false);
+  const [rapportFel, setRapportFel] = useState<string | null>(null);
+  const [exporterarFallt, setExporterarFallt] = useState(false);
+
+  const skapaRapport = async () => {
+    if (skaparRapport) return;
+    setRapportFel(null);
+    setSkaparRapport(true);
+    try {
+      const db = await getDatabase();
+      const j = rapportAr === "nu" ? nuvarande : jaktar(nuvarande.ar - 1);
+      await delaSasongsrapport(db, profil.id, profil.namn, j);
+    } catch (e) {
+      setRapportFel(e instanceof Error ? e.message : "Kunde inte skapa rapporten. Försök igen.");
+    } finally {
+      setSkaparRapport(false);
+    }
+  };
+
+  const exporteraFallt = async () => {
+    if (exporterarFallt) return;
+    setFel(null);
+    setExporterarFallt(true);
+    try {
+      const db = await getDatabase();
+      await exporteraFalltViltSomCsv(db, profil.id);
+    } catch (e) {
+      setFel(e instanceof Error ? e.message : "Kunde inte exportera. Försök igen.");
+    } finally {
+      setExporterarFallt(false);
+    }
+  };
 
   const exportera = async () => {
     if (exporterar) {
@@ -94,7 +130,38 @@ export default function Installningar() {
           </Txt>
           <View style={styles.knapp}>
             <Knapp titel="Exportera och dela" ikon="dela" onPress={exportera} laddar={exporterar} />
+            <Knapp
+              titel="Exportera fällt vilt"
+              variant="sekundar"
+              ikon="dela"
+              onPress={exporteraFallt}
+              laddar={exporterarFallt}
+            />
             <Felrad text={fel} />
+          </View>
+        </Kort>
+      </View>
+
+      <View>
+        <Etikett>SÄSONGSRAPPORT</Etikett>
+        <Kort>
+          <Txt variant="heading">Säsongsrapport som PDF</Txt>
+          <Txt variant="caption" farg="inkMuted" style={styles.hjalp}>
+            Fällt vilt, hundarnas drev och jaktdagboken för ett jaktår (1 juli–30 juni). Underlag
+            för jaktlagets rapportering i Viltdata.
+          </Txt>
+          <View style={styles.knapp}>
+            <Segment<"nu" | "forra">
+              etikett="Jaktår"
+              varde={rapportAr}
+              onChange={setRapportAr}
+              val={[
+                { varde: "nu", titel: nuvarande.namn },
+                { varde: "forra", titel: jaktar(nuvarande.ar - 1).namn },
+              ]}
+            />
+            <Knapp titel="Skapa och dela" ikon="dokument" onPress={skapaRapport} laddar={skaparRapport} />
+            <Felrad text={rapportFel} />
           </View>
         </Kort>
       </View>
