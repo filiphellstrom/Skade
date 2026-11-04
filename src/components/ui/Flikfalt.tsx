@@ -12,17 +12,23 @@ const IKONER: Record<string, IkonNamn> = {
   hundar: "hund",
   historik: "historik",
   jaktmarker: "jaktmark",
+  karta: "karta",
 };
 
 /**
- * Flikfältet enligt Design Systemet (components/TabBar): fyra flikar,
+ * Flikfältet enligt Design Systemet (components/TabBar): fem flikar
+ * (Karta tillagd 2026-11-04, Filips beslut - designen sa max fyra),
  * ikon + text alltid tillsammans, aktiv flik i brand på brandSoft,
  * inaktiv i inkMuted. Varje flik minst tap-min hög.
  *
  * Trycker man på den flik man redan står på hoppar fliken till sin rot
  * (React Navigations standardbeteende via tabPress-eventet).
  */
-export function Flikfalt({ state, descriptors, navigation }: BottomTabBarProps) {
+export function Flikfalt({
+  state,
+  descriptors,
+  navigation,
+}: BottomTabBarProps) {
   const { farger } = useTema();
   const insets = useSafeAreaInsets();
 
@@ -58,10 +64,23 @@ export function Flikfalt({ state, descriptors, navigation }: BottomTabBarProps) 
             accessibilityState={{ selected: aktiv }}
             accessibilityLabel={titel}
             onPress={onPress}
-            style={[styles.flik, aktiv && { backgroundColor: farger.brandSoft }]}
+            style={[
+              styles.flik,
+              aktiv && { backgroundColor: farger.brandSoft },
+            ]}
           >
-            <Ikon namn={IKONER[route.name] ?? "hem"} farg={aktiv ? farger.brand : farger.inkMuted} />
-            <Txt variant="label" farg={aktiv ? "brand" : "inkMuted"} style={styles.text}>
+            <Ikon
+              namn={IKONER[route.name] ?? "hem"}
+              farg={aktiv ? farger.brand : farger.inkMuted}
+            />
+            <Txt
+              variant="label"
+              farg={aktiv ? "brand" : "inkMuted"}
+              style={styles.text}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
               {titel}
             </Txt>
           </Pressable>

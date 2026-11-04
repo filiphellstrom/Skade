@@ -28,7 +28,10 @@ export type IkonNamn =
   | "kamera"
   | "dokument"
   | "klocka"
-  | "kalender";
+  | "kalender"
+  | "karta"
+  | "position"
+  | "lager";
 
 interface Props {
   namn: IkonNamn;
@@ -57,6 +60,25 @@ export function Ikon({ namn, farg, storlek = 24, linje = 1.75 }: Props) {
 }
 
 const INNEHALL: Record<IkonNamn, ReactNode> = {
+  karta: (
+    <>
+      <Path d="M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z" />
+      <Path d="M9 4v13.5M15 6.5V20" />
+    </>
+  ),
+  position: (
+    <>
+      <Circle cx="12" cy="12" r="7" />
+      <Circle cx="12" cy="12" r="2.5" />
+      <Path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </>
+  ),
+  lager: (
+    <>
+      <Path d="M12 3l9 5-9 5-9-5z" />
+      <Path d="M3 13l9 5 9-5" />
+    </>
+  ),
   hem: <Path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
   hund: (
     <>

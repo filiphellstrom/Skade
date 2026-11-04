@@ -38,7 +38,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Skade använder din ungefärliga position när du startar en jaktdag och ett drev, för att hämta vädret från SMHI till drevet. Positionen avrundas till ungefär en kilometer."
+          "locationWhenInUsePermission": "Skade använder din position för att visa var du är på kartan, och när du startar en jaktdag och ett drev för att hämta vädret från SMHI. Till SMHI skickas bara en position avrundad till ungefär en kilometer."
         }
       ],
       "./plugins/utan-push.js"

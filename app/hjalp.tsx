@@ -153,6 +153,14 @@ const OVRIGT: Amne[] = [
     ],
   },
   {
+    titel: "Karta",
+    stycken: [
+      "Fliken Karta visar var du är. Första gången frågar Skade om platsåtkomst. Har du sagt nej kan du ändra det med Öppna Inställningar.",
+      "Rutan överst visar din position i grader och hur noggrann den är. Min position centrerar kartan på dig igen, och Satellit växlar till satellitbild.",
+      "Positionen fungerar utan täckning, men själva kartbilden visas bara där den redan har laddats. Titta gärna på området hemma innan jakten. Positionen sparas inte.",
+    ],
+  },
+  {
     titel: "Profil och dokument",
     stycken: [
       "Tryck på den runda profilbilden uppe till höger på Hem för att öppna din profil. Där byter du profilbild, namn och e-post.",
