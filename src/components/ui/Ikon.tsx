@@ -31,7 +31,9 @@ export type IkonNamn =
   | "kalender"
   | "karta"
   | "position"
-  | "lager";
+  | "lager"
+  | "soluppgang"
+  | "solnedgang";
 
 interface Props {
   namn: IkonNamn;
@@ -60,6 +62,18 @@ export function Ikon({ namn, farg, storlek = 24, linje = 1.75 }: Props) {
 }
 
 const INNEHALL: Record<IkonNamn, ReactNode> = {
+  soluppgang: (
+    <>
+      <Path d="M3 20h18M7 20a5 5 0 0 1 10 0M4.5 14.5l1.4 1M19.5 14.5l-1.4 1" />
+      <Path d="M12 3v8M9 6l3-3 3 3" />
+    </>
+  ),
+  solnedgang: (
+    <>
+      <Path d="M3 20h18M7 20a5 5 0 0 1 10 0M4.5 14.5l1.4 1M19.5 14.5l-1.4 1" />
+      <Path d="M12 3v8M9 8l3 3 3-3" />
+    </>
+  ),
   karta: (
     <>
       <Path d="M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z" />

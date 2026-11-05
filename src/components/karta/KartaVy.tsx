@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Linking, Pressable, StyleSheet, View } from "react-native";
 import MapView from "react-native-maps";
 import type {
@@ -15,6 +15,12 @@ import { Knapp } from "@/components/ui/Knapp";
 import { Txt } from "@/components/ui/Txt";
 import { useTema } from "@/theme/TemaContext";
 import { avstand, radie, tryck } from "@/theme/tokens";
+import {
+  formateraKlocka,
+  formateraSoltid,
+  nastaSolhandelse,
+  solDagEtikett,
+} from "@/utils/sol";
 
 /**
  * Kartfliken i iPhone-appen (steg 1): Apple Maps via react-native-maps,
@@ -29,6 +35,9 @@ import { avstand, radie, tryck } from "@/theme/tokens";
  * - Positionen (GPS) fungerar utan täckning. Kartbilden från Apple gör
  *   det bara där den redan finns i cacheminnet. Offlinekarta är ett
  *   senare steg (t.ex. Lantmäteriets terrängkarta som UrlTile).
+ * - Nästa soluppgång eller solnedgång (vilken som kommer först) visas
+ *   till höger i positionsrutan, uträknad i telefonen ur GPS-positionen
+ *   (src/utils/sol.ts) - fungerar alltså utan täckning.
  */
 
 type Behorighet = "laddar" | "ok" | "nekad";
@@ -67,6 +76,26 @@ export function KartaVy() {
   const [behorighet, setBehorighet] = useState<Behorighet>("laddar");
   const [position, setPosition] = useState<Position | null>(null);
   const [kartTyp, setKartTyp] = useState<MapType>("standard");
+  const [nu, setNu] = useState(() => new Date());
+
+  // Klockan för solhändelsen: räkna om varje halv minut, så att
+  // "uppgång" byts mot "nedgång" i tid.
+  useEffect(() => {
+    const id = setInterval(() => setNu(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Avrundat till ~1 km: solen ändras inte märkbart på kortare avstånd,
+  // och då räknas inte allt om vid varje GPS-uppdatering.
+  const solLat = position ? Math.round(position.latitude * 100) / 100 : null;
+  const solLon = position ? Math.round(position.longitude * 100) / 100 : null;
+  const solHandelse = useMemo(
+    () =>
+      solLat !== null && solLon !== null
+        ? nastaSolhandelse(nu, solLat, solLon)
+        : null,
+    [nu, solLat, solLon],
+  );
 
   const kollaBehorighet = useCallback(async (fraga: boolean) => {
     try {
@@ -191,16 +220,42 @@ export function KartaVy() {
             />
           </View>
         ) : position ? (
-          <View>
-            <Txt variant="bodyStrong" selectable style={styles.siffror}>
-              {formateraKoordinat(position.latitude, "lat")}{" "}
-              {formateraKoordinat(position.longitude, "lon")}
-            </Txt>
-            <Txt variant="caption" farg="inkMuted">
-              {position.noggrannhet !== null
-                ? `Noggrannhet ±${Math.round(position.noggrannhet)} m`
-                : "Noggrannhet okänd"}
-            </Txt>
+          <View style={styles.rutaRad}>
+            <View style={styles.flex1}>
+              <Txt variant="bodyStrong" selectable style={styles.siffror}>
+                {formateraKoordinat(position.latitude, "lat")}{" "}
+                {formateraKoordinat(position.longitude, "lon")}
+              </Txt>
+              <Txt variant="caption" farg="inkMuted">
+                {position.noggrannhet !== null
+                  ? `Noggrannhet ±${Math.round(position.noggrannhet)} m`
+                  : "Noggrannhet okänd"}
+              </Txt>
+            </View>
+            {solHandelse && (
+              <View
+                style={[styles.sol, { backgroundColor: farger.surface300 }]}
+                accessible
+                accessibilityLabel={`${solHandelse.typ === "uppgang" ? "Soluppgång" : "Solnedgång"} ${formateraSoltid(solHandelse.tid, nu)}`}
+              >
+                <Ikon
+                  namn={
+                    solHandelse.typ === "uppgang" ? "soluppgang" : "solnedgang"
+                  }
+                  farg={farger.ink}
+                />
+                <View>
+                  <Txt variant="bodyStrong" style={styles.siffror}>
+                    {formateraKlocka(solHandelse.tid)}
+                  </Txt>
+                  {!!solDagEtikett(solHandelse.tid, nu) && (
+                    <Txt variant="caption" farg="inkMuted">
+                      {solDagEtikett(solHandelse.tid, nu)}
+                    </Txt>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         ) : (
           <Txt farg="inkMuted">
@@ -284,6 +339,16 @@ const styles = StyleSheet.create({
     paddingVertical: avstand.s3,
   },
   nekad: { gap: avstand.s2 },
+  rutaRad: { flexDirection: "row", alignItems: "center", gap: avstand.s3 },
+  flex1: { flex: 1 },
+  sol: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: avstand.s1,
+    paddingHorizontal: avstand.s3,
+    paddingVertical: avstand.s2,
+    borderRadius: radie.pill,
+  },
   siffror: { fontVariant: ["tabular-nums"] },
   knappar: {
     position: "absolute",
