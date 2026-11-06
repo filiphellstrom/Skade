@@ -77,6 +77,7 @@ async function skapaNyJaktmark(
     wehuntId: null,
     lat: null,
     lon: null,
+    grans: null,
     createdAt: now,
     updatedAt: now,
   };

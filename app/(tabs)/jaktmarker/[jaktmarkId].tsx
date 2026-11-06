@@ -12,6 +12,7 @@ import { Knapp } from "@/components/ui/Knapp";
 import { Etikett, Falt, Skarm, TillbakaKnapp } from "@/components/ui/Delar";
 import { Kort } from "@/components/ui/Kort";
 import { Txt } from "@/components/ui/Txt";
+import { KartdataKort } from "@/components/karta/KartdataKort";
 
 /**
  * Döp om en jaktmark. Namnet ändras överallt (jaktdagar pekar på marken
@@ -147,6 +148,14 @@ export default function RedigeraJaktmark() {
             </View>
           </Kort>
         </View>
+
+        <KartdataKort
+          mark={mark}
+          onAndrad={async () => {
+            const db = await getDatabase();
+            setMark(await hamtaJaktmark(db, mark.id));
+          }}
+        />
       </Skarm>
     </KeyboardAvoidingView>
   );

@@ -84,6 +84,44 @@ export const FARGER: Record<Schema, Farger> = {
   },
 };
 
+/**
+ * Kartans egna färger (Vind och vittring, 2026-11-06). Ritas ovanpå
+ * Apple Maps, både vanlig karta och satellit, och är därför samma i
+ * ljust och mörkt läge - de måste synas mot kartan, inte mot appens yta.
+ * Vindpilarna ritas ljusa med en mörk kontur under, så att de syns mot
+ * både skog, åker och satellitbild.
+ */
+export const KART_FARGER = {
+  /** Jaktmarkens gräns. */
+  grans: "#ff6b1a",
+  /** Vittringszonen (fylls med låg täckning, se medAlfa). */
+  vittring: "#f2d22e",
+  vittringKant: "#c9a400",
+  /** Vindpilar: ljus pil på mörk kontur. */
+  pil: "#ffffff",
+  pilKontur: "#0b1a12",
+  /** Vald jägarposition. */
+  jagare: "#1f4d3a",
+  jagareKant: "#ffffff",
+  /** Kartpunkter per kategori. */
+  pass: "#2f8f57",
+  torn: "#1f6b40",
+  parkering: "#2b6cb0",
+  foder: "#8a4fbf",
+  ovrigt: "#5f6b66",
+  etikettYta: "#ffffff",
+  etikettText: "#14201b",
+} as const;
+
+/** "#rrggbb" + täckning 0-1 → "rgba(r,g,b,a)". */
+export function medAlfa(hex: string, alfa: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, alfa))})`;
+}
+
 /** Kortskugga: bara i ljust läge, i mörkt skiljer ytorna sig med färg. */
 export const KORT_SKUGGA: Record<Schema, string | undefined> = {
   light: "0px 1px 2px rgba(20,32,27,0.06), 0px 6px 20px rgba(20,32,27,0.06)",

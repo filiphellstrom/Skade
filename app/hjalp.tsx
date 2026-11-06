@@ -162,6 +162,16 @@ const OVRIGT: Amne[] = [
     ],
   },
   {
+    titel: "Vind och vittring",
+    stycken: [
+      "Importera jaktmarkens gräns, pass och torn från en GPX-fil, till exempel kartexporten från WeHunt: öppna jaktmarken under Jaktmarker och tryck Importera GPX-fil. Samma fil kan importeras igen utan att något dubbleras.",
+      "Tryck Vind på kartan. Pilarna visar dit vinden blåser enligt SMHI:s prognos. En västlig vind kommer från väster och pilarna pekar mot öster. Längre och tjockare pil betyder starkare vind.",
+      "Tryck på ett pass eller var som helst på kartan för att välja jägarposition. Utan val används din egen position. Den gula zonen visar ungefär åt vilket håll vittringen förs från platsen. Den är bredare när vinden är byig, svag eller vrider, och längden och bredden kan ändras i panelen.",
+      "Zonen är en uppskattning, ingen exakt gräns. Terräng, skog, öppna ytor, lokala vindar och termik ingår inte än.",
+      "Välj tid med timmarna under vinden. Panelen visar källan, när prognosen gäller och när den hämtades. Utan täckning visas den senast hämtade prognosen, med en varning. Prognoserna sparas i telefonen så att de kan kopplas till jaktdagen.",
+    ],
+  },
+  {
     titel: "Profil och dokument",
     stycken: [
       "Tryck på den runda profilbilden uppe till höger på Hem för att öppna din profil. Där byter du profilbild, namn och e-post.",

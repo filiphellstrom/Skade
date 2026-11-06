@@ -1,13 +1,50 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, Linking, Pressable, StyleSheet, View } from "react-native";
+import {
+  AppState,
+  Linking,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import MapView from "react-native-maps";
 import type {
+  MapPressEvent,
   MapType,
   Region,
   UserLocationChangeEvent,
 } from "react-native-maps";
 import * as Location from "expo-location";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { getDatabase } from "@/db/client";
+import { hamtaKartdata } from "@/db/queries/kartpunkt";
+import type { Kartdata } from "@/db/queries/kartpunkt";
+import { hamtaPagaendeJaktdag } from "@/db/queries/jaktdag";
+import type { Kartpunkt } from "@/db/types";
+import { useProfil } from "@/contexts/ProfilContext";
+import { omradeFor, omradetsBredd } from "@/vind/geo";
+import type { LatLon } from "@/vind/geo";
+import { arPass, kategoriNamn } from "@/vind/gpx";
+import { byggPil, narmaste, pilplatser, provpunkter } from "@/vind/pilar";
+import type { Vindpil } from "@/vind/pilar";
+import {
+  narmasteTid,
+  prognosTimmar,
+  riktningsskifte,
+  stegVid,
+  valbaraTider,
+} from "@/vind/prognos";
+import { beraknaVittringszon } from "@/vind/vittring";
+import {
+  GransLager,
+  JagareMarkor,
+  PilLager,
+  PunktMarkor,
+  ZonLager,
+} from "./vind/Kartlager";
+import { BREDDVAL, VindPanel } from "./vind/VindPanel";
+import type { Langdval } from "./vind/VindPanel";
+import { punktNyckel, useVindprognoser } from "./vind/useVindprognoser";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ikon } from "@/components/ui/Ikon";
 import type { IkonNamn } from "@/components/ui/Ikon";
@@ -38,7 +75,22 @@ import {
  * - Nästa soluppgång eller solnedgång (vilken som kommer först) visas
  *   till höger i positionsrutan, uträknad i telefonen ur GPS-positionen
  *   (src/utils/sol.ts) - fungerar alltså utan täckning.
+ * - Vind och vittring (2026-11-06): jaktmarkernas gräns och markeringar
+ *   (importerade från GPX) visas alltid. Knappen "Vind" slår på
+ *   vindpilar, vittringszon och prognospanelen. Beräkningarna ligger i
+ *   src/vind/ (testade), lagren i ./vind/.
  */
+
+/** Pilar visas bara när kartan visar mindre än så här (meter i bredd). */
+const MAX_BREDD_FOR_PILAR = 80000;
+/** Namn på pass och torn visas när kartan är smalare än så här. */
+const MAX_BREDD_FOR_NAMN = 3500;
+
+interface ValdPosition {
+  pos: LatLon;
+  namn: string;
+  punktId?: string;
+}
 
 type Behorighet = "laddar" | "ok" | "nekad";
 
@@ -78,6 +130,26 @@ export function KartaVy() {
   const [kartTyp, setKartTyp] = useState<MapType>("standard");
   const [nu, setNu] = useState(() => new Date());
 
+  // --- Vind och vittring ---
+  const { profil } = useProfil();
+  const { jaktmark: jaktmarkParam } = useLocalSearchParams<{ jaktmark?: string }>();
+  const { height: skarmHojd } = useWindowDimensions();
+  const [kartdata, setKartdata] = useState<Kartdata[]>([]);
+  const [koppling, setKoppling] = useState<{ jaktdagId: string | null; jaktmarkId: string | null }>({
+    jaktdagId: null,
+    jaktmarkId: null,
+  });
+  const [vindPa, setVindPa] = useState(false);
+  const [panelOppen, setPanelOppen] = useState(false);
+  const [omrade, setOmrade] = useState<Region>(SVERIGE);
+  const [vald, setVald] = useState<ValdPosition | null>(null);
+  const [valdTid, setValdTid] = useState<number | null>(null);
+  const [zonPa, setZonPa] = useState(true);
+  const [langd, setLangd] = useState<Langdval>("auto");
+  const [bredd, setBredd] = useState<"smal" | "normal" | "bred">("normal");
+  const [forsok, setForsok] = useState(0);
+  const hanteradParam = useRef<string | null>(null);
+
   // Klockan för solhändelsen: räkna om varje halv minut, så att
   // "uppgång" byts mot "nedgång" i tid.
   useEffect(() => {
@@ -114,6 +186,27 @@ export function KartaVy() {
     useCallback(() => {
       void kollaBehorighet(true);
     }, [kollaBehorighet]),
+  );
+
+  // Kartdata (gräns och markeringar) och pågående jaktdag, vid fokus.
+  useFocusEffect(
+    useCallback(() => {
+      let avbruten = false;
+      (async () => {
+        const db = await getDatabase();
+        const data = await hamtaKartdata(db, profil.id);
+        const pagaende = await hamtaPagaendeJaktdag(db, profil.id);
+        if (avbruten) return;
+        setKartdata(data);
+        setKoppling({
+          jaktdagId: pagaende?.id ?? null,
+          jaktmarkId: pagaende?.jaktmarkId ?? null,
+        });
+      })();
+      return () => {
+        avbruten = true;
+      };
+    }, [profil.id]),
   );
 
   // Tillbaka från Inställningar: kolla igen, men fråga inte.
@@ -171,6 +264,144 @@ export function KartaVy() {
     }
   }, [position, centrera]);
 
+  // --- Vind och vittring: beräkningar ---------------------------------
+
+  const visaJaktmark = useCallback(
+    (id?: string | null) => {
+      const data = kartdata.find((k) => k.jaktmark.id === id) ?? kartdata[0];
+      if (!data) return;
+      const o = omradeFor([
+        ...data.grans,
+        ...data.punkter.map((p) => ({ latitude: p.lat, longitude: p.lon })),
+      ]);
+      if (o) {
+        harCentrerat.current = true;
+        karta.current?.animateToRegion(o, 600);
+      }
+    },
+    [kartdata],
+  );
+
+  // "Visa på kartan" från jaktmarkens sida: zooma till marken och slå på vinden.
+  useEffect(() => {
+    if (!jaktmarkParam || hanteradParam.current === jaktmarkParam) return;
+    if (!kartdata.some((k) => k.jaktmark.id === jaktmarkParam)) return;
+    hanteradParam.current = jaktmarkParam;
+    setVindPa(true);
+    visaJaktmark(jaktmarkParam);
+  }, [jaktmarkParam, kartdata, visaJaktmark]);
+
+  const gpsLat = position?.latitude ?? null;
+  const gpsLon = position?.longitude ?? null;
+  const gpsPosition = useMemo<LatLon | null>(
+    () => (gpsLat !== null && gpsLon !== null ? { latitude: gpsLat, longitude: gpsLon } : null),
+    [gpsLat, gpsLon],
+  );
+  const aktiv = useMemo<ValdPosition | null>(
+    () => vald ?? (gpsPosition ? { pos: gpsPosition, namn: "Min position" } : null),
+    [vald, gpsPosition],
+  );
+
+  const breddMeter = omradetsBredd(omrade);
+  const visaPilar = vindPa && breddMeter < MAX_BREDD_FOR_PILAR;
+  // Avrundat område, så att små panoreringar inte hämtar om prognoser.
+  const provNyckel = visaPilar
+    ? [omrade.latitude, omrade.longitude, omrade.latitudeDelta, omrade.longitudeDelta]
+        .map((v) => Math.round(v * 100))
+        .join(",")
+    : "";
+  const prov = useMemo(() => {
+    if (!provNyckel) return [];
+    const [la, lo, dla, dlo] = provNyckel.split(",").map((v) => Number(v) / 100);
+    return provpunkter({ latitude: la, longitude: lo, latitudeDelta: dla, longitudeDelta: dlo });
+  }, [provNyckel]);
+  const aktivNyckel = aktiv ? punktNyckel(aktiv.pos.latitude, aktiv.pos.longitude) : null;
+  const nycklar = useMemo(() => {
+    if (!vindPa) return [];
+    const k = prov.map((p) => punktNyckel(p.lat, p.lon));
+    if (aktivNyckel) k.push(aktivNyckel);
+    return k;
+  }, [vindPa, prov, aktivNyckel]);
+  const prognoser = useVindprognoser(nycklar, koppling, forsok);
+  const aktivData = aktivNyckel ? prognoser[aktivNyckel] : undefined;
+  const aktivPrognos = aktivData?.prognos ?? null;
+
+  const nuSek = Math.floor(nu.getTime() / 1000);
+  const tider = useMemo(() => {
+    const kalla =
+      aktivPrognos ?? Object.values(prognoser).find((p) => p.prognos)?.prognos ?? null;
+    return valbaraTider(kalla, nuSek);
+    // Räkna om när timmen byts, inte varje halvminut.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktivPrognos, prognoser, Math.floor(nuSek / 3600)]);
+  const tid =
+    valdTid !== null && tider.includes(valdTid) ? valdTid : narmasteTid(tider, nuSek);
+
+  const aktivSteg = tid !== null ? stegVid(aktivPrognos, tid) : null;
+
+  const pilar = useMemo<Vindpil[]>(() => {
+    if (!visaPilar || tid === null || prov.length === 0) return [];
+    const { punkter, ruta } = pilplatser(omrade);
+    const ut: Vindpil[] = [];
+    for (const p of punkter) {
+      const i = narmaste(p, prov);
+      const data = prognoser[punktNyckel(prov[i].lat, prov[i].lon)];
+      const steg = stegVid(data?.prognos ?? null, tid);
+      if (!steg || steg.franGrader === null || steg.medelvind === null) continue;
+      const pil = byggPil(p, steg.franGrader, steg.medelvind, ruta);
+      if (pil) ut.push(pil);
+    }
+    return ut;
+  }, [visaPilar, tid, prov, prognoser, omrade]);
+
+  const zon = useMemo(() => {
+    if (!vindPa || !zonPa || !aktiv || !aktivPrognos || tid === null || !aktivSteg) return null;
+    if (aktivSteg.franGrader === null || aktivSteg.medelvind === null) return null;
+    return beraknaVittringszon(
+      aktiv.pos,
+      {
+        franGrader: aktivSteg.franGrader,
+        medelvind: aktivSteg.medelvind,
+        byvind: aktivSteg.byvind,
+      },
+      {
+        prognosTimmar: prognosTimmar(aktivPrognos, tid),
+        riktningsskifte: riktningsskifte(aktivPrognos, tid),
+      },
+      {
+        langd,
+        bredd: BREDDVAL.find((b) => b.varde === bredd)?.faktor ?? 1,
+      },
+    );
+  }, [vindPa, zonPa, aktiv, aktivPrognos, tid, aktivSteg, langd, bredd]);
+
+  const onKartTryck = useCallback(
+    (e: MapPressEvent) => {
+      if (!vindPa) return;
+      // Tryck på en markör ger också ett karttryck - det hanteras av markören.
+      if ((e.nativeEvent as { action?: string }).action === "marker-press") return;
+      setVald({ pos: e.nativeEvent.coordinate, namn: "Vald punkt på kartan" });
+    },
+    [vindPa],
+  );
+
+  const onValjPunkt = useCallback(
+    (p: Kartpunkt) => {
+      if (!vindPa) {
+        setVindPa(true);
+      }
+      setVald({
+        pos: { latitude: p.lat, longitude: p.lon },
+        namn: `${kategoriNamn(p.typ)} ${p.namn}`.trim(),
+        punktId: p.id,
+      });
+    },
+    [vindPa],
+  );
+
+  const visaNamn = breddMeter < MAX_BREDD_FOR_NAMN;
+  const allaPunkter = useMemo(() => kartdata.flatMap((k) => k.punkter), [kartdata]);
+
   const satellit = kartTyp === "hybrid";
   const toppPadding = insets.top + avstand.s3;
 
@@ -191,7 +422,29 @@ export function KartaVy() {
         toolbarEnabled={false}
         // Kompassen och skalan hamnar under positionsrutan.
         mapPadding={{ top: toppPadding + 64, right: 0, bottom: 0, left: 0 }}
-      />
+        onRegionChangeComplete={setOmrade}
+        onPress={onKartTryck}
+      >
+        {kartdata.map((k) => (
+          <GransLager key={k.jaktmark.id} punkter={k.grans} />
+        ))}
+        {vindPa && zon && <ZonLager zon={zon} />}
+        {visaPilar && <PilLager pilar={pilar} />}
+        {allaPunkter.map((p) => {
+          const namnSyns = visaNamn && arPass(p.typ);
+          const arVald = vald?.punktId === p.id;
+          return (
+            <PunktMarkor
+              key={`${p.id}-${namnSyns ? 1 : 0}-${arVald ? 1 : 0}`}
+              punkt={p}
+              visaNamn={namnSyns}
+              vald={arVald}
+              onValj={onValjPunkt}
+            />
+          );
+        })}
+        {vindPa && vald && <JagareMarkor position={vald.pos} />}
+      </MapView>
 
       {/* Positionsruta överst */}
       <View
@@ -264,22 +517,75 @@ export function KartaVy() {
         )}
       </View>
 
-      {/* Knappar nere till höger */}
-      <View style={styles.knappar}>
-        <KartKnapp
-          ikon="lager"
-          text={satellit ? "Karta" : "Satellit"}
-          etikett={satellit ? "Visa vanlig karta" : "Visa satellitbild"}
-          onPress={() => setKartTyp(satellit ? "standard" : "hybrid")}
-        />
-        {behorighet === "ok" && (
-          <KartKnapp
-            ikon="position"
-            text="Min position"
-            etikett="Centrera på min position"
-            onPress={minPosition}
-            framhavd
+      {/* Nere: knappar till höger, och prognospanelen när vinden är på. */}
+      <View style={styles.nere} pointerEvents="box-none">
+        {!(vindPa && panelOppen) && (
+          <View style={styles.knappar} pointerEvents="box-none">
+            <KartKnapp
+              ikon="vind"
+              text={vindPa ? "Dölj vind" : "Vind"}
+              etikett={vindPa ? "Dölj vind och vittring" : "Visa vind och vittring"}
+              onPress={() => setVindPa(!vindPa)}
+            />
+            <KartKnapp
+              ikon="lager"
+              text={satellit ? "Karta" : "Satellit"}
+              etikett={satellit ? "Visa vanlig karta" : "Visa satellitbild"}
+              onPress={() => setKartTyp(satellit ? "standard" : "hybrid")}
+            />
+            {vindPa && kartdata.length > 0 && (
+              <KartKnapp
+                ikon="jaktmark"
+                text="Jaktmark"
+                etikett="Visa hela jaktmarken"
+                onPress={() => visaJaktmark(koppling.jaktmarkId)}
+              />
+            )}
+            {behorighet === "ok" && (
+              <KartKnapp
+                ikon="position"
+                text="Min position"
+                etikett="Centrera på min position"
+                onPress={minPosition}
+                framhavd
+              />
+            )}
+          </View>
+        )}
+        {vindPa && (
+          <VindPanel
+            oppen={panelOppen}
+            setOppen={setPanelOppen}
+            nu={nuSek}
+            prognos={aktivPrognos}
+            steg={aktivSteg}
+            franMinne={aktivData?.franMinne ?? false}
+            laddar={aktivData?.laddar ?? false}
+            fel={aktivData?.fel ?? null}
+            onForsokIgen={() => setForsok((f) => f + 1)}
+            tider={tider}
+            valdTid={tid}
+            setValdTid={setValdTid}
+            positionNamn={aktiv?.namn ?? null}
+            kanAterstalla={!!vald && !!gpsPosition}
+            onAterstall={() => {
+              setVald(null);
+              if (gpsPosition) centrera(gpsPosition.latitude, gpsPosition.longitude);
+            }}
+            zonPa={zonPa}
+            setZonPa={setZonPa}
+            langd={langd}
+            setLangd={setLangd}
+            bredd={bredd}
+            setBredd={setBredd}
+            zon={zon}
+            maxHojd={Math.round(skarmHojd * 0.42)}
           />
+        )}
+        {vindPa && !visaPilar && (
+          <View style={[styles.zoomaIn, { backgroundColor: farger.surface200 }]}>
+            <Txt variant="caption">Zooma in för att se vindpilar.</Txt>
+          </View>
         )}
       </View>
     </View>
@@ -350,12 +656,23 @@ const styles = StyleSheet.create({
     borderRadius: radie.pill,
   },
   siffror: { fontVariant: ["tabular-nums"] },
-  knappar: {
+  nere: {
     position: "absolute",
-    right: avstand.s4,
-    bottom: avstand.s4,
+    left: avstand.s3,
+    right: avstand.s3,
+    bottom: avstand.s3,
+    gap: avstand.s3,
+  },
+  knappar: {
     alignItems: "flex-end",
     gap: avstand.s3,
+    paddingRight: avstand.s1,
+  },
+  zoomaIn: {
+    alignSelf: "center",
+    paddingHorizontal: avstand.s3,
+    paddingVertical: avstand.s1,
+    borderRadius: radie.pill,
   },
   kartKnapp: {
     minHeight: tryck.min,

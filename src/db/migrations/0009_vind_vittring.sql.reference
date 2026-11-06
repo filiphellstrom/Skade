@@ -1,0 +1,45 @@
+-- Migration 0009 – Vind och vittring: jaktmarksgräns, kartpunkter (GPX) och
+-- vindprognoser med tidsstämpel. Beslutad 2026-11-06. Ren kopia av SQL:en i
+-- 0009_vind_vittring.ts.
+
+ALTER TABLE Jaktmark ADD COLUMN grans TEXT;
+
+CREATE TABLE Kartpunkt (
+  id TEXT PRIMARY KEY,
+  jaktmarkId TEXT NOT NULL REFERENCES Jaktmark(id),
+  namn TEXT NOT NULL DEFAULT '',
+  typ TEXT NOT NULL DEFAULT '',
+  lat REAL NOT NULL,
+  lon REAL NOT NULL,
+  kalla TEXT NOT NULL DEFAULT 'gpx',
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+
+CREATE INDEX idx_kartpunkt_jaktmark ON Kartpunkt(jaktmarkId);
+CREATE UNIQUE INDEX idx_kartpunkt_unik ON Kartpunkt(
+  jaktmarkId, typ, namn, round(lat * 100000), round(lon * 100000)
+);
+
+CREATE TABLE VindPrognos (
+  id TEXT PRIMARY KEY,
+  kalla TEXT NOT NULL,
+  lat REAL NOT NULL,
+  lon REAL NOT NULL,
+  rutLat REAL,
+  rutLon REAL,
+  referensTid INTEGER,
+  publiceradTid INTEGER,
+  hamtadAt INTEGER NOT NULL,
+  tid INTEGER NOT NULL,
+  vindRiktning REAL,
+  medelvind REAL,
+  byvind REAL,
+  jaktdagId TEXT,
+  jaktmarkId TEXT,
+  createdAt INTEGER NOT NULL
+);
+
+CREATE INDEX idx_vindprognos_plats ON VindPrognos(kalla, lat, lon, hamtadAt);
+CREATE INDEX idx_vindprognos_jaktdag ON VindPrognos(jaktdagId, tid);
+CREATE INDEX idx_vindprognos_tid ON VindPrognos(tid);

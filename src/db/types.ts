@@ -60,8 +60,46 @@ export interface Jaktmark {
   /** Migration 0007. Ungefärlig position (2 decimaler), NULL = okänd. */
   lat: number | null;
   lon: number | null;
+  /** Migration 0009. Gränsen som JSON [[lat, lon], ...] från GPX, NULL = ingen. */
+  grans: string | null;
   createdAt: UnixTimestamp;
   updatedAt: UnixTimestamp;
+}
+
+/** Migration 0009. En markering på en jaktmark (pass, torn, saltsten …), från GPX. */
+export interface Kartpunkt {
+  id: Uuid;
+  jaktmarkId: Uuid;
+  namn: string;
+  /** WeHunts kategori oförändrad, t.ex. "stand", "tower". Se src/vind/gpx.ts. */
+  typ: string;
+  lat: number;
+  lon: number;
+  kalla: string;
+  createdAt: UnixTimestamp;
+  updatedAt: UnixTimestamp;
+}
+
+/** Migration 0009. Ett sparat vindprognossteg (offline-cache och historik). */
+export interface VindPrognosRad {
+  id: Uuid;
+  kalla: string;
+  lat: number;
+  lon: number;
+  rutLat: number | null;
+  rutLon: number | null;
+  referensTid: UnixTimestamp | null;
+  publiceradTid: UnixTimestamp | null;
+  hamtadAt: UnixTimestamp;
+  /** Prognosens giltighetstid. */
+  tid: UnixTimestamp;
+  /** Varifrån vinden kommer, grader. */
+  vindRiktning: number | null;
+  medelvind: number | null;
+  byvind: number | null;
+  jaktdagId: Uuid | null;
+  jaktmarkId: Uuid | null;
+  createdAt: UnixTimestamp;
 }
 
 /** Jaktmark med summering - Jaktmarker-fliken och väljaren i Ny jaktdag. */

@@ -35,3 +35,9 @@ coverage/
 # Local SQLite-databaser (skapas på enheten, ska inte committas)
 *.db
 *.sqlite
+
+# Kompilerade tester (npm test)
+.test-build/
+
+# Riktiga GPX-filer för lokala tester - repot är publikt, checka aldrig in dem
+src/vind/__tests__/fixtures/privat/

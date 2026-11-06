@@ -33,7 +33,10 @@ export type IkonNamn =
   | "position"
   | "lager"
   | "soluppgang"
-  | "solnedgang";
+  | "solnedgang"
+  | "vind"
+  | "upp"
+  | "ned";
 
 interface Props {
   namn: IkonNamn;
@@ -87,6 +90,15 @@ const INNEHALL: Record<IkonNamn, ReactNode> = {
       <Path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
     </>
   ),
+  vind: (
+    <>
+      <Path d="M3 8h11a3 3 0 1 0-3-3" />
+      <Path d="M3 12h15a3 3 0 1 1-3 3" />
+      <Path d="M3 16h7" />
+    </>
+  ),
+  upp: <Path d="M6 15l6-6 6 6" />,
+  ned: <Path d="M6 9l6 6 6-6" />,
   lager: (
     <>
       <Path d="M12 3l9 5-9 5-9-5z" />

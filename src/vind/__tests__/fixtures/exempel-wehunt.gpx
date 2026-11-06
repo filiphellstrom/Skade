@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Påhittad testfil i samma format som WeHunts kartexport. Inga riktiga platser. -->
+<gpx version="1.1" creator="WeHunt" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name></name>
+    <time>2026-11-01T18:44:21.130Z</time>
+  </metadata>
+  <wpt lat="61.200150" lon="14.501230">
+    <name>A01</name>
+    <type>stand</type>
+  </wpt>
+  <wpt lat="61.203410" lon="14.506780">
+    <name>A02</name>
+    <type>tower</type>
+  </wpt>
+  <wpt lat="61.198770" lon="14.512340">
+    <name>B03</name>
+    <type>stand</type>
+  </wpt>
+  <wpt lat="61.201000" lon="14.498000">
+    <name>Saltsten</name>
+    <type>salt_stone</type>
+  </wpt>
+  <wpt lat="61.204500" lon="14.509900">
+    <name>Saltsten</name>
+    <type>salt_stone</type>
+  </wpt>
+  <wpt lat="61.199900" lon="14.503300">
+    <name>Åtel</name>
+    <type>bait</type>
+  </wpt>
+  <wpt lat="61.202200" lon="14.500100">
+    <name>P1</name>
+    <type>parking</type>
+  </wpt>
+  <wpt lat="61.197600" lon="14.507700">
+    <name>Övrigt</name>
+    <type>other</type>
+  </wpt>
+  <trk>
+    <name>Exempelmarken</name>
+    <type>border</type>
+    <trkseg>
+      <trkpt lat="61.195000" lon="14.495000"></trkpt>
+      <trkpt lat="61.207000" lon="14.495000"></trkpt>
+      <trkpt lat="61.207000" lon="14.516000"></trkpt>
+      <trkpt lat="61.195000" lon="14.516000"></trkpt>
+      <trkpt lat="61.195000" lon="14.495000"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
