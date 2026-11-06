@@ -41,3 +41,6 @@ coverage/
 
 # Riktiga GPX-filer för lokala tester - repot är publikt, checka aldrig in dem
 src/vind/__tests__/fixtures/privat/
+
+# Riktiga hund- och förarspår från Garmin - checka aldrig in
+src/spar/__tests__/fixtures/privat/

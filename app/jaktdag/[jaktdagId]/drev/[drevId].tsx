@@ -20,6 +20,8 @@ import {
   raderaHandelse,
 } from "@/db/queries/handelse";
 import { hamtaVaderForDrev } from "@/db/queries/vader";
+import { hamtaHundsparInfoForDrev } from "@/db/queries/spar";
+import type { SparInfo } from "@/db/queries/spar";
 import { hamtaFalltViltForDrev } from "@/db/queries/fallt";
 import { hamtaDrevMedHundnamnForJaktdag } from "@/db/queries/statistik";
 import {
@@ -31,7 +33,7 @@ import {
 import { VADER_KALLA, vaderText } from "@/utils/vader";
 import { UTFALL, UTFALL_FALLD, VILTARTER } from "@/utils/vilt";
 import { Kort, Listrad } from "@/components/ui/Kort";
-import { formateraVaraktighet } from "@/utils/format";
+import { formateraStracka, formateraVaraktighet } from "@/utils/format";
 import { ChipSelect } from "@/components/ChipSelect";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SelectableCard } from "@/components/SelectableCard";
@@ -110,6 +112,8 @@ export default function RedigeraDrev() {
   const [sok, setSok] = useState<number | null>(null);
   const [vader, setVader] = useState<Vader | null>(null);
   const [fallt, setFallt] = useState<FalltVilt[]>([]);
+  // 2026-11-07: hundspår från Garmin.
+  const [spar, setSpar] = useState<SparInfo | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -117,7 +121,7 @@ export default function RedigeraDrev() {
 
       (async () => {
         const db = await getDatabase();
-        const [d, hundar, dagensHandelser, dagensDrev, v, f] =
+        const [d, hundar, dagensHandelser, dagensDrev, v, f, sp] =
           await Promise.all([
             hamtaDrevMedHundnamn(db, drevId),
             hamtaHundarForJaktdag(db, jaktdagId),
@@ -125,6 +129,7 @@ export default function RedigeraDrev() {
             hamtaDrevMedHundnamnForJaktdag(db, jaktdagId),
             hamtaVaderForDrev(db, drevId),
             hamtaFalltViltForDrev(db, drevId),
+            hamtaHundsparInfoForDrev(db, drevId),
           ]);
         if (avbruten) {
           return;
@@ -135,6 +140,7 @@ export default function RedigeraDrev() {
         setSok(d ? soktid(d, dagensHandelser, dagensDrev) : null);
         setVader(v);
         setFallt(f);
+        setSpar(sp);
         if (d) {
           setDrev(d);
           setHundId(d.hundId);
@@ -427,6 +433,32 @@ export default function RedigeraDrev() {
           }
         />
       </View>
+
+      {spar && (
+        <View style={styles.block}>
+          <Etikett>HUNDSPÅR</Etikett>
+          <Kort>
+            <Txt variant="body">
+              {[
+                formateraStracka(spar.strackaMeter),
+                spar.maxAvstandMeter !== null ? `längst bort ${formateraStracka(spar.maxAvstandMeter)}` : null,
+                spar.halsband && spar.halsband !== drev.hundNamn ? `halsband ${spar.halsband}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </Txt>
+            <Txt variant="caption" farg="inkMuted" style={styles.undertitel}>
+              Från Garmin. Ändras tiden på drevet: importera filerna igen på jaktdagen i Historik.
+            </Txt>
+          </Kort>
+          <Knapp
+            variant="sekundar"
+            ikon="karta"
+            titel="Visa spåret på kartan"
+            onPress={() => router.push(`/jaktdag/${jaktdagId}/spar?drev=${drevId}`)}
+          />
+        </View>
+      )}
 
       {Platform.OS !== "web" && drev.endTimestamp !== null && (
         <Knapp

@@ -8,7 +8,7 @@
     "skipLibCheck": true,
     "types": ["node"],
     "outDir": ".test-build",
-    "rootDir": "src/vind"
+    "rootDir": "src"
   },
-  "include": ["src/vind/**/*.ts"]
+  "include": ["src/vind/**/*.ts", "src/spar/**/*.ts"]
 }

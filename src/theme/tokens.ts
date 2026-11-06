@@ -111,6 +111,14 @@ export const KART_FARGER = {
   ovrigt: "#5f6b66",
   etikettYta: "#ffffff",
   etikettText: "#14201b",
+  /** Hundspår från Garmin (migration 0010): en färg per drev, i tur och ordning. */
+  hundspar: ["#e4572e", "#2b6cb0", "#8a4fbf", "#c98a00", "#2f8f57", "#d6336c"],
+  /** Kontur under hundspåren, så de syns på satellitbild. */
+  sparKontur: "#ffffff",
+  /** Förarens eget spår (streckat). */
+  forare: "#14201b",
+  /** Halsbandet utanför dreven. */
+  halsband: "#5f6b66",
 } as const;
 
 /** "#rrggbb" + täckning 0-1 → "rgba(r,g,b,a)". */

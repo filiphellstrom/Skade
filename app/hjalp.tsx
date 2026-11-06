@@ -172,6 +172,16 @@ const OVRIGT: Amne[] = [
     ],
   },
   {
+    titel: "Hundspår från Garmin",
+    stycken: [
+      "Skade kan visa hundens spår från en Garmin Alpha-handenhet (Alpha 100 och nyare). Koppla handenheten till datorn med USB och spara GPX-filerna i Filer-appen: en fil per halsband, till exempel Aston.gpx, och Current.gpx för ditt eget spår.",
+      "Öppna jaktdagen i Historik och tryck Importera GPX-filer under Spår från Garmin. Välj alla filer på en gång. Bara den jaktdagens del av filerna används, så det gör inget om filerna innehåller flera dagar.",
+      "Spåren kopplas till dreven efter tid, från släppt (om du tryckte Släppt) till drevslut. Hunden kommer från drevet, inte från halsbandets namn i Garmin. Har Aston burit halsbandet på förmiddagen och Astrid på eftermiddagen hamnar spåren ändå rätt. Är två halsband ute under samma drev väljs det halsband som heter som drevets hund.",
+      "Visa spåren på kartan visar varje drev i egen färg och ditt eget spår streckat. Sträckan räknas utan GPS-brus när hunden står still, och Längst bort är hundens största avstånd från dig under drevet.",
+      "Importera igen om du ändrat tiden på ett drev: den nya importen ersätter de gamla spåren. Spåren innehåller exakta positioner och sparas bara i telefonen.",
+    ],
+  },
+  {
     titel: "Profil och dokument",
     stycken: [
       "Tryck på den runda profilbilden uppe till höger på Hem för att öppna din profil. Där byter du profilbild, namn och e-post.",

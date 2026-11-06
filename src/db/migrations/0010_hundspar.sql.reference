@@ -1,0 +1,21 @@
+-- Migration 0010 – hundspår från Garmin (GPX från Alpha-handenheten). Beslutad
+-- 2026-11-07. Ren kopia av SQL:en i 0010_hundspar.ts.
+CREATE TABLE Spar (
+  id TEXT PRIMARY KEY,
+  jaktdagId TEXT NOT NULL REFERENCES Jaktdag(id),
+  drevId TEXT REFERENCES Drev(id),
+  hundId TEXT REFERENCES Hund(id),
+  typ TEXT NOT NULL CHECK (typ IN ('hund', 'forare', 'halsband')),
+  halsband TEXT NOT NULL DEFAULT '',
+  startTid INTEGER NOT NULL,
+  slutTid INTEGER NOT NULL,
+  antalPunkter INTEGER NOT NULL,
+  strackaMeter REAL NOT NULL,
+  maxAvstandMeter REAL,
+  punkter TEXT NOT NULL,
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+
+CREATE INDEX idx_spar_jaktdag ON Spar(jaktdagId);
+CREATE INDEX idx_spar_drev ON Spar(drevId);

@@ -316,3 +316,28 @@ export interface FalltVilt {
   createdAt: UnixTimestamp;
   updatedAt: UnixTimestamp;
 }
+
+/** Migration 0010: GPS-spår från Garmin (se src/spar/hundspar.ts). */
+export type SparTyp = "hund" | "forare" | "halsband";
+
+export interface Spar {
+  id: Uuid;
+  jaktdagId: Uuid;
+  /** Satt för typ 'hund'. */
+  drevId: Uuid | null;
+  /** Satt för typ 'hund' - drevets hund, inte halsbandets namn. */
+  hundId: Uuid | null;
+  typ: SparTyp;
+  /** Spårets namn i GPX-filen (halsbandets namn i Alpha). */
+  halsband: string;
+  startTid: UnixTimestamp;
+  slutTid: UnixTimestamp;
+  antalPunkter: number;
+  strackaMeter: number;
+  /** Typ 'hund': största avstånd från föraren under drevet. NULL utan förarspår. */
+  maxAvstandMeter: number | null;
+  /** JSON [[lat, lon, t], …], se packa()/packaUpp(). */
+  punkter: string;
+  createdAt: UnixTimestamp;
+  updatedAt: UnixTimestamp;
+}

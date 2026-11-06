@@ -39,3 +39,14 @@ export function listaNamn(namn: string[]): string {
   }
   return `${namn.slice(0, -1).join(", ")} och ${namn[namn.length - 1]}`;
 }
+
+/** Sträcka: "850 m" under 1 km, annars "4,2 km". */
+export function formateraStracka(meter: number): string {
+  if (meter < 1000) return `${Math.round(meter / 10) * 10} m`;
+  return `${(meter / 1000).toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+}
+
+/** Klockslag "09:07" för Unix-sekunder. */
+export function formateraKlockslag(unixSekunder: number): string {
+  return new Date(unixSekunder * 1000).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+}

@@ -17,6 +17,7 @@ import { InlineBanner } from "@/components/InlineBanner";
 import { avstand } from "@/theme/tokens";
 import { Txt } from "@/components/ui/Txt";
 import { antalDrevText, formateraVaraktighet } from "@/utils/format";
+import { HundsparKort } from "@/components/spar/HundsparKort";
 
 /**
  * Detaljvy för en enskild (oftast avslutad) jaktdag i historiken - varje
@@ -33,6 +34,8 @@ import { antalDrevText, formateraVaraktighet } from "@/utils/format";
  * "Radera drev"). Pågående jaktdagar kan inte raderas (knappen visas inte).
  * 2026-11-06: bekräftelse krävs alltid, även för en tom jaktdag - samma
  * flöde som "Radera drev" (Filip).
+ * 2026-11-07: "Spår från Garmin" - import av GPX från Alpha-handenheten
+ * (src/components/spar/HundsparKort.tsx).
  */
 export default function JaktdagHistorik() {
   const f = useFarger();
@@ -252,6 +255,9 @@ export default function JaktdagHistorik() {
           <Knapp titel="Spara anteckning" variant="sekundar" onPress={sparaAnteckning} laddar={sparar} />
         )}
       </View>
+
+      {/* 2026-11-07: hundspår från Garmin (GPX från Alpha-handenheten). */}
+      <HundsparKort jaktdagId={jaktdagId} />
 
       {Platform.OS !== "web" && avslutade.length > 0 && (
         <Knapp variant="sekundar" ikon="dela" titel="Dela som bild" onPress={() => router.push(`/dela?typ=jaktdag&id=${jaktdagId}`)} />

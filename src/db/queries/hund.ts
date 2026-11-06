@@ -206,6 +206,11 @@ export async function raderaHund(
     await db.runAsync("UPDATE FalltVilt SET hundId = NULL WHERE hundId = ?", [
       hundId,
     ]);
+    // Migration 0010: hundspår för hundens drev.
+    await db.runAsync(
+      "DELETE FROM Spar WHERE hundId = ? OR drevId IN (SELECT id FROM Drev WHERE hundId = ?)",
+      [hundId, hundId],
+    );
     await db.runAsync("DELETE FROM Drev WHERE hundId = ?", [hundId]);
     await db.runAsync("DELETE FROM JaktdagHund WHERE hundId = ?", [hundId]);
     await db.runAsync(

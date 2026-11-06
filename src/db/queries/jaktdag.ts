@@ -178,6 +178,8 @@ export async function raderaJaktdag(
     // Migration 0009: vindprognoser är historik och behålls, bara kopplingen nollas.
     await db.runAsync("UPDATE VindPrognos SET jaktdagId = NULL WHERE jaktdagId = ?", [jaktdagId]);
     await db.runAsync("DELETE FROM FalltVilt WHERE jaktdagId = ?", [jaktdagId]);
+    // Migration 0010: jaktdagens spår från Garmin.
+    await db.runAsync("DELETE FROM Spar WHERE jaktdagId = ?", [jaktdagId]);
     await db.runAsync("DELETE FROM Drev WHERE jaktdagId = ?", [jaktdagId]);
     await db.runAsync("DELETE FROM JaktdagHund WHERE jaktdagId = ?", [
       jaktdagId,

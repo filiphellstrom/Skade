@@ -120,6 +120,11 @@ export async function uppdateraDrev(
       "UPDATE Drev SET hundId = ?, updatedAt = ? WHERE id = ?",
       [params.hundId, now, drevId],
     );
+    // Migration 0010: drevets hundspår följer med till den nya hunden.
+    await db.runAsync(
+      "UPDATE Spar SET hundId = ?, updatedAt = ? WHERE drevId = ? AND typ = 'hund'",
+      [params.hundId, now, drevId],
+    );
   }
 
   if (
@@ -256,6 +261,8 @@ export async function raderaDrev(
     // aldrig automatiskt.
     await db.runAsync("DELETE FROM DrevHandelse WHERE drevId = ?", [drevId]);
     await db.runAsync("DELETE FROM Vader WHERE drevId = ?", [drevId]);
+    // Migration 0010: drevets hundspår.
+    await db.runAsync("DELETE FROM Spar WHERE drevId = ?", [drevId]);
     await db.runAsync("UPDATE FalltVilt SET drevId = NULL WHERE drevId = ?", [
       drevId,
     ]);
