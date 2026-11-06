@@ -30,8 +30,9 @@ import { antalDrevText, formateraVaraktighet } from "@/utils/format";
  * ändring eller radering syns direkt.
  *
  * 2026-11-02: "Radera jaktdag" (liten röd knapp under rubriken, som
- * "Radera drev"). Har dagen drev krävs en bekräftelse, annars raderas den
- * direkt. Pågående jaktdagar kan inte raderas (knappen visas inte).
+ * "Radera drev"). Pågående jaktdagar kan inte raderas (knappen visas inte).
+ * 2026-11-06: bekräftelse krävs alltid, även för en tom jaktdag - samma
+ * flöde som "Radera drev" (Filip).
  */
 export default function JaktdagHistorik() {
   const f = useFarger();
@@ -138,13 +139,17 @@ export default function JaktdagHistorik() {
               titel="Radera jaktdag"
               variant="faraLiten"
               fullBredd
-              onPress={() => (drev.length > 0 || fallt.length > 0 ? setVisaBekraftelse(true) : radera())}
+              onPress={() => setVisaBekraftelse(true)}
               laddar={raderar}
             />
           ) : (
             <>
               <InlineBanner
-                text={`Jaktdagen och ${antalDrevText(drev.length)} raderas permanent, med händelser, väder och fällt vilt. Det går inte att ångra.`}
+                text={
+                  drev.length > 0 || fallt.length > 0
+                    ? `Jaktdagen och ${antalDrevText(drev.length)} raderas permanent, med händelser, väder och fällt vilt. Det går inte att ångra.`
+                    : "Den här jaktdagen raderas permanent. Det går inte att ångra."
+                }
                 typ="error"
               />
               <Knapp titel="Ja, radera permanent" variant="fara" onPress={radera} laddar={raderar} />
