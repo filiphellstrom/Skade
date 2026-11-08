@@ -1,6 +1,7 @@
 // Webbversionen av Skade på skade.hellstrom.fyi (Cloudflare Workers, bara statiska filer).
 // Byggs och publiceras av Workers Builds vid varje push till main:
-//   build:  npm run build:web   (npx expo export -p web → ./dist)
+//   build:  npm run build:web   (expo export -p web → ./dist, utan Netlifys _redirects
+//           som Cloudflare avvisar som en oändlig loop – SPA-läget nedan gör samma sak)
 //   deploy: npx wrangler deploy
 // Inloggningen sköts av en egen Cloudflare Access-applikation för skade.hellstrom.fyi
 // (Google-inloggning, egen e-postlista) – separat från hellstrom.fyi och gym.hellstrom.fyi.
