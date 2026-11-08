@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test \".test-build/*/__tests__/*.test.js\""
+    "test": "tsc -p tsconfig.test.json && node --test \".test-build/*/__tests__/*.test.js\"",
+    "build:web": "expo export -p web"
   },
   "dependencies": {
     "@bacons/apple-targets": "4.0.7",

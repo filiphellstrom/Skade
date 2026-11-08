@@ -1,0 +1,20 @@
+// Webbversionen av Skade på skade.hellstrom.fyi (Cloudflare Workers, bara statiska filer).
+// Byggs och publiceras av Workers Builds vid varje push till main:
+//   build:  npm run build:web   (npx expo export -p web → ./dist)
+//   deploy: npx wrangler deploy
+// Inloggningen sköts av en egen Cloudflare Access-applikation för skade.hellstrom.fyi
+// (Google-inloggning, egen e-postlista) – separat från hellstrom.fyi och gym.hellstrom.fyi.
+// workers.dev- och preview-adresserna är avstängda, annars skulle de gå förbi Access.
+{
+  "name": "skade-web",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "skade.hellstrom.fyi", "custom_domain": true }],
+  "assets": {
+    "directory": "./dist",
+    // Expo Router är en SPA: okända sökvägar (t.ex. /historik) får index.html.
+    // COOP/COEP-headrarna för SQLite i webbläsaren kommer från public/_headers.
+    "not_found_handling": "single-page-application"
+  }
+}
