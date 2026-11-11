@@ -13,6 +13,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.skade.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSSupportsLiveActivities": true
@@ -41,7 +42,9 @@
           "locationWhenInUsePermission": "Skade använder din position för att visa var du är på kartan, och när du startar en jaktdag och ett drev för att hämta vädret från SMHI. Till SMHI skickas bara en position avrundad till ungefär en kilometer."
         }
       ],
-      "./plugins/utan-push.js"
+      "expo-apple-authentication",
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

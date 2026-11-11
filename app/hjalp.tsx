@@ -191,6 +191,15 @@ const OVRIGT: Amne[] = [
     ],
   },
   {
+    titel: "Konto",
+    stycken: [
+      "Längst ned i profilen kan du logga in med Apple eller Google. Kontot är frivilligt. Appen fungerar som vanligt utan det.",
+      "Kontot behövs för det som delas i ett jaktlag. På servern sparas ditt namn och din e-postadress. Loggar du in med Apple kan du välja att dölja e-postadressen.",
+      "Drev, hundar, jaktdagar och dokument ligger kvar i telefonen även när du är inloggad.",
+      "Radera konto tar bort kontot från servern permanent. Har du varit inloggad länge kan du behöva logga in igen först. Det som finns i telefonen påverkas inte.",
+    ],
+  },
+  {
     titel: "Inställningar",
     stycken: [
       "Tema: Ljust, Mörkt eller System. System följer telefonens inställning. Timern har en egen ljus/mörk-knapp.",
@@ -200,7 +209,7 @@ const OVRIGT: Amne[] = [
   {
     titel: "Dina data",
     stycken: [
-      "Allt du registrerar sparas bara i telefonen. Ingenting skickas till någon server, och appen fungerar helt offline.",
+      "Allt du registrerar sparas bara i telefonen, och appen fungerar helt offline. Till en server skickas bara det som beskrivs under Konto (om du loggar in), samt en avrundad position till SMHI för väder och vind.",
       "Det betyder också att data inte följer med om du byter eller återställer telefonen. Exportera till CSV regelbundet om du vill ha en egen kopia.",
       "Webbversionen av Skade sparar sina data separat i webbläsaren och delar dem inte med appen.",
     ],

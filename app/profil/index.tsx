@@ -9,6 +9,7 @@ import { useProfil } from "@/contexts/ProfilContext";
 import { avstand } from "@/theme/tokens";
 import { BildVal } from "@/components/BildVal";
 import { DokumentStatusChip } from "@/components/DokumentStatusChip";
+import { KontoKort } from "@/components/konto/KontoKort";
 import { Avatar } from "@/components/ui/Avatar";
 import { Knapp } from "@/components/ui/Knapp";
 import { Kort, Listrad } from "@/components/ui/Kort";
@@ -23,7 +24,9 @@ import { taBortFil } from "@/utils/filer";
  *
  * Profilbild (sparas direkt vid val), namn och e-post (sparas när man
  * lämnar fältet) och dokumentlistan. Dokument sorteras med de som går ut
- * först överst. Allt ligger bara lokalt på telefonen.
+ * först överst. Allt det ligger bara lokalt på telefonen.
+ *
+ * Längst ned: Konto (KontoKort) – frivillig inloggning mot Skades server.
  */
 export default function Profil() {
   const { profil, uppdateraProfilFranDatabas } = useProfil();
@@ -155,6 +158,8 @@ export default function Profil() {
             Dokumenten sparas bara på den här telefonen och delas aldrig. Kopiorna ersätter inte originalen.
           </Txt>
         </View>
+
+        <KontoKort />
       </Skarm>
       <BildVal
         oppen={bildVal}
