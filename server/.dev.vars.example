@@ -1,0 +1,6 @@
+# Kopiera till .dev.vars för lokal körning (npm run dev / npm test).
+# .dev.vars checkas aldrig in. Riktiga hemligheter ligger som Worker-secrets.
+BETTER_AUTH_SECRET=lokal-utveckling-inte-hemlig-0123456789abcdef
+BETTER_AUTH_URL=http://localhost:8787
+EXTRA_ORIGINS=http://localhost:8081
+TESTLAGE=1

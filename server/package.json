@@ -1,0 +1,24 @@
+{
+  "name": "skade-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs",
+    "schema": "node scripts/auth-schema.mjs",
+    "deploy": "wrangler d1 migrations apply skade --remote && wrangler deploy"
+  },
+  "dependencies": {
+    "@better-auth/expo": "^1.7.20",
+    "better-auth": "^1.7.20",
+    "jose": "^6.2.17"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261110.1",
+    "better-sqlite3": "^13.0.3",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.160.0"
+  }
+}

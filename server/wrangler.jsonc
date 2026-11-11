@@ -1,0 +1,35 @@
+// Skades server: inloggning och (senare) jaktlag, planer, eftersök och chatt.
+// Ligger på api.skade.hellstrom.fyi – utanför Cloudflare Access, eftersom appen
+// inte kan gå igenom Access. Inloggningen sköts av Better Auth i den här Workern.
+//
+// Byggs av Workers Builds vid push (rotkatalog: server):
+//   deploy: npm run deploy   (kör D1-migrationerna och sedan wrangler deploy)
+//
+// Hemligheter läggs ALDRIG här (repot är publikt) utan som Worker-secrets:
+//   BETTER_AUTH_SECRET                      – krävs
+//   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET  – Google-inloggning
+//   APPLE_CLIENT_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY – Apple-inloggning på webben
+//   (Apple i appen behöver ingen hemlighet.)
+{
+  "name": "skade-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "api.skade.hellstrom.fyi", "custom_domain": true }],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "skade",
+      "database_id": "8c275070-9492-40b0-b2c3-d73b60a1beb1",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "BETTER_AUTH_URL": "https://api.skade.hellstrom.fyi",
+    "WEBB_URL": "https://skade.hellstrom.fyi",
+    "APPLE_BUNDLE_ID": "com.skade.app",
+    "APPLE_TEAM_ID": "372JXBLW33"
+  }
+}
