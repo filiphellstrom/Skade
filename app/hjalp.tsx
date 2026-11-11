@@ -159,6 +159,7 @@ const OVRIGT: Amne[] = [
       "Rutan överst visar din position i grader och hur noggrann den är. Min position centrerar kartan på dig igen, och Satellit växlar till satellitbild.",
       "Till höger i rutan visas nästa soluppgång eller solnedgång där du står, beroende på vilken som kommer först. Tiden räknas ut i telefonen och fungerar utan täckning.",
       "Positionen fungerar utan täckning, men själva kartbilden visas bara där den redan har laddats. Titta gärna på området hemma innan jakten. Positionen sparas inte.",
+      "På webben (skade.hellstrom.fyi) finns också en karta, med valen Karta och Terräng (höjdkurvor). Den visar jaktmarkens gräns och markeringar och passar för att titta på marken på en stor skärm. Vind och vittring finns bara i appen än.",
     ],
   },
   {
