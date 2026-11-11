@@ -4,6 +4,7 @@ import { Marker, Polygon, Polyline } from "react-native-maps";
 import type { Kartpunkt } from "@/db/types";
 import { FONT, KART_FARGER, medAlfa } from "@/theme/tokens";
 import { arPass, kategoriNamn } from "@/vind/gpx";
+import { punktFarg } from "../punktfarg";
 import type { LatLon } from "@/vind/geo";
 import type { Vindpil } from "@/vind/pilar";
 import type { Vittringszon } from "@/vind/vittring";
@@ -32,23 +33,6 @@ export const GransLager = memo(function GransLager({ punkter }: { punkter: LatLo
     />
   );
 });
-
-function punktFarg(typ: string): string {
-  switch (typ) {
-    case "stand":
-      return KART_FARGER.pass;
-    case "tower":
-      return KART_FARGER.torn;
-    case "parking":
-      return KART_FARGER.parkering;
-    case "salt_stone":
-    case "feeding_grounds":
-    case "bait":
-      return KART_FARGER.foder;
-    default:
-      return KART_FARGER.ovrigt;
-  }
-}
 
 /**
  * En markering. Pass och torn har namnetikett (när `visaNamn`) och går
