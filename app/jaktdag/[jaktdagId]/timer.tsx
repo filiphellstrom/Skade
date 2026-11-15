@@ -1,3 +1,5 @@
+import { synkaGlomtDrev } from "@/utils/glomtDrev";
+import { kannTryck } from "@/utils/haptik";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -158,6 +160,8 @@ export default function Timer() {
           // Låsskärmen (Live Activity) ska spegla databasen - se
           // src/liveActivity.ts. Väntas inte in: får aldrig blockera timern.
           void synkaLasskarm(profil.id);
+          // Påminnelsen om glömt drev ska stämma med läget (även efter start från låsskärmen).
+          void synkaGlomtDrev(drev, hundar.find((x) => x.id === drev?.hundId)?.namn);
           // Väder för drev som saknar det (inget nät vid drevstart).
           if (j) {
             void vadretsKo(db, jaktdagId, j.jaktmarkId).then(async () => {
@@ -225,7 +229,9 @@ export default function Timer() {
         ...lista,
         { ...drev, hundNamn: aktivHund.namn },
       ]);
+      kannTryck("start");
       void synkaLasskarm(profil.id);
+      void synkaGlomtDrev(drev, aktivHund.namn);
       if (jaktdag) {
         // Fire-and-forget: får aldrig blockera timern.
         void vadretsKo(db, jaktdagId, jaktdag.jaktmarkId).then(async () => {
@@ -260,7 +266,9 @@ export default function Timer() {
       const avslutatDrev = await stoppaDrev(db, pagaendeDrev.id, vidTappt);
       setSenasteDrev(avslutatDrev);
       setPagaendeDrev(null);
+      kannTryck("stopp");
       void synkaLasskarm(profil.id);
+      void synkaGlomtDrev(null);
       router.push(`/jaktdag/${jaktdagId}/drev/${avslutatDrev.id}?nystoppat=1`);
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte stoppa drevet.");
@@ -289,6 +297,7 @@ export default function Timer() {
         typ,
       });
       setHandelser((lista) => [...lista, ny]);
+      kannTryck("handelse");
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte spara.");
     } finally {

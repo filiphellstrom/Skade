@@ -101,8 +101,19 @@ function PaminnelseNavigeringApp() {
       return;
     }
     const id = svar.notification.request.identifier;
-    const dokumentId = svar.notification.request.content.data?.dokumentId;
-    if (hanterad.current === id || typeof dokumentId !== "string") {
+    const data = svar.notification.request.content.data;
+    const dokumentId = data?.dokumentId;
+    // Påminnelsen om glömt drev (src/utils/glomtDrev.ts) öppnar timern.
+    const jaktdagId = data?.glomtDrevJaktdagId;
+    if (hanterad.current === id) {
+      return;
+    }
+    if (typeof jaktdagId === "string") {
+      hanterad.current = id;
+      router.push(`/jaktdag/${jaktdagId}/timer`);
+      return;
+    }
+    if (typeof dokumentId !== "string") {
       return;
     }
     hanterad.current = id;

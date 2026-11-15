@@ -4,11 +4,14 @@ import type { UnixTimestamp } from "@/db/types";
  * Sprint 3: periodfiltret för historik/statistik
  * (src/components/PeriodFilter.tsx, app/historik/index.tsx,
  * app/historik/statistik.tsx). "allt" = inget filter, "ar" = ett helt
- * kalenderår, "intervall" = valfritt start-/slutdatum.
+ * kalenderår, "jaktar" = ett jaktår (1 juli–30 juni, som säsongsrapporten,
+ * tillagt 2026-11-15), "intervall" = valfritt start-/slutdatum.
  */
 export type HistorikPeriod =
   | { typ: "allt" }
   | { typ: "ar"; ar: number }
+  /** Jaktår, 1 juli–30 juni. ar = startåret (2026 = jaktåret 2026/27). */
+  | { typ: "jaktar"; ar: number }
   | { typ: "intervall"; start: UnixTimestamp; slut: UnixTimestamp };
 
 const EN_DAG = 24 * 60 * 60;
@@ -41,7 +44,24 @@ export function periodTillIntervall(
     };
   }
 
+  if (period.typ === "jaktar") {
+    return {
+      fran: Math.floor(new Date(period.ar, 6, 1).getTime() / 1000),
+      till: Math.floor(new Date(period.ar + 1, 6, 1).getTime() / 1000),
+    };
+  }
+
   const fran = Math.min(period.start, period.slut);
   const slut = Math.max(period.start, period.slut);
   return { fran, till: slut + EN_DAG };
+}
+
+/** Startåret för jaktåret som pågår (före 1 juli = det som började förra året). */
+export function innevarandeJaktarStart(nu = new Date()): number {
+  return nu.getMonth() >= 6 ? nu.getFullYear() : nu.getFullYear() - 1;
+}
+
+/** 2026 → "2026/27" */
+export function jaktarNamn(startAr: number): string {
+  return `${startAr}/${String((startAr + 1) % 100).padStart(2, "0")}`;
 }

@@ -200,3 +200,24 @@ export async function hamtaHundsparInfoForDrev(db: SQLiteDatabase, drevId: Uuid)
 export async function raderaSparForJaktdag(db: SQLiteDatabase, jaktdagId: Uuid): Promise<void> {
   await db.runAsync("DELETE FROM Spar WHERE jaktdagId = ?", [jaktdagId]);
 }
+
+/**
+ * Jaktdagen vars spår ska visas på Karta-fliken: den pågående jaktdagen om
+ * den har spår, annars den senaste jaktdagen som har några. null = inga spår alls.
+ */
+export async function hamtaJaktdagMedSpar(
+  db: SQLiteDatabase,
+  profilId: Uuid,
+  pagaendeJaktdagId: Uuid | null,
+): Promise<{ jaktdagId: Uuid; datum: number } | null> {
+  const rad = await db.getFirstAsync<{ jaktdagId: Uuid; datum: number }>(
+    `SELECT s.jaktdagId AS jaktdagId, MIN(s.startTid) AS datum
+     FROM Spar s JOIN Jaktdag j ON j.id = s.jaktdagId
+     WHERE j.profilId = ?
+     GROUP BY s.jaktdagId
+     ORDER BY (s.jaktdagId = ?) DESC, MAX(s.startTid) DESC
+     LIMIT 1`,
+    [profilId, pagaendeJaktdagId ?? ""],
+  );
+  return rad ?? null;
+}

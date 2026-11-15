@@ -15,7 +15,7 @@ import type {
   UserLocationChangeEvent,
 } from "react-native-maps";
 import * as Location from "expo-location";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { hamtaKartdata } from "@/db/queries/kartpunkt";
 import type { Kartdata } from "@/db/queries/kartpunkt";
@@ -53,6 +53,16 @@ import { Txt } from "@/components/ui/Txt";
 import { useTema } from "@/theme/TemaContext";
 import { avstand, radie, tryck } from "@/theme/tokens";
 import { formateraKoordinat } from "@/utils/koordinat";
+import { useJag } from "@/jaktlag/jag";
+import { laddaFranMinne, synka, useAktivPlan, useAktivaEftersok, valjAktivPlan } from "@/jaktlag/lager";
+import { mittUppdrag } from "@/jaktlag/typer";
+import { EftersokLager, PlanLager, planPunkter, UtpekadMarkor } from "./PlanLager";
+import { HundsparLager } from "./HundsparLager";
+import { hamtaJaktdagMedSpar, hamtaSparForJaktdag } from "@/db/queries/spar";
+import { hamtaDrevMedHundnamnForJaktdag } from "@/db/queries/statistik";
+import { byggSparLager } from "@/components/spar/sparLager";
+import type { SparLager } from "@/components/spar/sparLager";
+import { formateraDag } from "@/utils/format";
 import {
   formateraKlocka,
   formateraSoltid,
@@ -128,7 +138,22 @@ export function KartaVy() {
 
   // --- Vind och vittring ---
   const { profil } = useProfil();
-  const { jaktmark: jaktmarkParam } = useLocalSearchParams<{ jaktmark?: string }>();
+  const {
+    jaktmark: jaktmarkParam,
+    plan: planParam,
+    punkt: punktParam,
+    punktNamn,
+  } = useLocalSearchParams<{ jaktmark?: string; plan?: string; punkt?: string; punktNamn?: string }>();
+  // Jaktlag: den aktiva planen, öppna eftersök och en utpekad plats.
+  const { jag } = useJag();
+  const aktivPlan = useAktivPlan();
+  const eftersok = useAktivaEftersok();
+  const [allaRutter, setAllaRutter] = useState(false);
+  const hanteradPlats = useRef<string | null>(null);
+  // Hundspår från Garmin på kartan.
+  const [sparDag, setSparDag] = useState<{ jaktdagId: string; datum: number } | null>(null);
+  const [sparPa, setSparPa] = useState(false);
+  const [sparLager, setSparLager] = useState<SparLager[]>([]);
   const { height: skarmHojd } = useWindowDimensions();
   const [kartdata, setKartdata] = useState<Kartdata[]>([]);
   const [koppling, setKoppling] = useState<{ jaktdagId: string | null; jaktmarkId: string | null }>({
@@ -198,6 +223,9 @@ export function KartaVy() {
           jaktdagId: pagaende?.id ?? null,
           jaktmarkId: pagaende?.jaktmarkId ?? null,
         });
+        // Hundspår från Garmin: den pågående jaktdagens, annars den senaste med spår.
+        const medSpar = await hamtaJaktdagMedSpar(db, profil.id, pagaende?.id ?? null);
+        if (!avbruten) setSparDag(medSpar);
       })();
       return () => {
         avbruten = true;
@@ -286,6 +314,96 @@ export function KartaVy() {
     setVindPa(true);
     visaJaktmark(jaktmarkParam);
   }, [jaktmarkParam, kartdata, visaJaktmark]);
+
+  // --- Jaktlag: plan, eftersök och utpekad plats -------------------------
+
+  const aktivtLagId = aktivPlan?.lagId;
+  useFocusEffect(
+    useCallback(() => {
+      void laddaFranMinne();
+      if (!aktivtLagId) return;
+      const kor = () => void synka(aktivtLagId).catch(() => {});
+      kor();
+      const timer = setInterval(kor, 15000);
+      return () => clearInterval(timer);
+    }, [aktivtLagId]),
+  );
+
+  const planInnehall = aktivPlan?.plan.innehall;
+  const mittId = aktivPlan ? (mittUppdrag(aktivPlan.plan, jag?.id ?? null, jag?.namn ?? null)?.id ?? null) : null;
+
+  const visaPlan = useCallback(() => {
+    const o = planInnehall ? omradeFor(planPunkter(planInnehall)) : null;
+    if (o) {
+      harCentrerat.current = true;
+      karta.current?.animateToRegion(o, 600);
+    }
+    return !!o;
+  }, [planInnehall]);
+
+  const utpekad = useMemo(() => {
+    const [lat, lon] = (punktParam ?? "").split(",").map(Number);
+    return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+  }, [punktParam]);
+
+  // "Visa på kartan" från en plan eller ett eftersök: zooma dit en gång.
+  useEffect(() => {
+    if (utpekad) {
+      const nyckel = `punkt:${punktParam}`;
+      if (hanteradPlats.current !== nyckel) {
+        hanteradPlats.current = nyckel;
+        harCentrerat.current = true;
+        // Kartan kan vara nyskapad; vänta ett ögonblick så att den hinner bli klar.
+        const t = setTimeout(() => centrera(utpekad.lat, utpekad.lon), 300);
+        return () => clearTimeout(t);
+      }
+      return;
+    }
+    if (planParam && planInnehall) {
+      const nyckel = `plan:${aktivPlan?.plan.id}`;
+      if (hanteradPlats.current !== nyckel) {
+        hanteradPlats.current = nyckel;
+        const t = setTimeout(visaPlan, 300);
+        return () => clearTimeout(t);
+      }
+    }
+  }, [utpekad, punktParam, planParam, planInnehall, aktivPlan?.plan.id, visaPlan, centrera]);
+
+  // Hundspåren läses in först när de slås på (de kan vara tiotusentals punkter).
+  const sparJaktdagId = sparDag?.jaktdagId ?? null;
+  useEffect(() => {
+    if (!sparPa || !sparJaktdagId) {
+      setSparLager([]);
+      return;
+    }
+    let avbruten = false;
+    void (async () => {
+      const db = await getDatabase();
+      const [spar, drev] = await Promise.all([
+        hamtaSparForJaktdag(db, sparJaktdagId),
+        hamtaDrevMedHundnamnForJaktdag(db, sparJaktdagId),
+      ]);
+      if (avbruten) return;
+      const lager = byggSparLager(spar, drev.map((d) => d.id));
+      setSparLager(lager);
+      const alla = lager.flatMap((l) => l.koordinater);
+      if (alla.length >= 2) {
+        harCentrerat.current = true;
+        karta.current?.fitToCoordinates(alla, {
+          edgePadding: { top: 160, right: 40, bottom: 120, left: 40 },
+          animated: true,
+        });
+      }
+    })().catch(() => {});
+    return () => {
+      avbruten = true;
+    };
+  }, [sparPa, sparJaktdagId]);
+
+  // Planens gräns och pass ritas bara om samma jaktmark inte redan finns i telefonen.
+  const planMarkNamn = planInnehall?.jaktmark?.namn.trim().toLowerCase();
+  const planMarkFinnsLokalt =
+    !!planMarkNamn && kartdata.some((k) => k.jaktmark.namn.trim().toLowerCase() === planMarkNamn && (k.grans.length > 0 || k.punkter.length > 0));
 
   const gpsLat = position?.latitude ?? null;
   const gpsLon = position?.longitude ?? null;
@@ -417,7 +535,7 @@ export function KartaVy() {
         pitchEnabled={false}
         toolbarEnabled={false}
         // Kompassen och skalan hamnar under positionsrutan.
-        mapPadding={{ top: toppPadding + 64, right: 0, bottom: 0, left: 0 }}
+        mapPadding={{ top: toppPadding + 64 + (aktivPlan ? 58 : 0), right: 0, bottom: 0, left: 0 }}
         onRegionChangeComplete={setOmrade}
         onPress={onKartTryck}
       >
@@ -440,6 +558,23 @@ export function KartaVy() {
           );
         })}
         {vindPa && vald && <JagareMarkor position={vald.pos} />}
+        {sparLager.length > 0 && <HundsparLager lager={sparLager} />}
+        {planInnehall && (
+          <PlanLager
+            innehall={planInnehall}
+            fokusId={mittId}
+            visaAllaRutter={allaRutter || mittId === null}
+            visaJaktmark={!planMarkFinnsLokalt}
+            visaNamn={visaNamn}
+          />
+        )}
+        <EftersokLager
+          eftersok={eftersok}
+          onValj={(e) => router.push(`/jaktlag/${e.jaktlagId}/eftersok/${e.id}`)}
+        />
+        {utpekad && !eftersok.some((e) => e.lat === utpekad.lat && e.lon === utpekad.lon) && (
+          <UtpekadMarkor punkt={utpekad} namn={punktNamn || "Vald punkt"} />
+        )}
       </MapView>
 
       {/* Positionsruta överst */}
@@ -511,12 +646,56 @@ export function KartaVy() {
             {behorighet === "laddar" ? "Kartan laddas…" : "Söker position…"}
           </Txt>
         )}
+        {aktivPlan && (
+          <View style={[styles.planrad, { borderTopColor: farger.border }]}>
+            <View style={styles.flex1}>
+              <Txt variant="bodyStrong" numberOfLines={1}>
+                {aktivPlan.plan.namn}
+              </Txt>
+              <Txt variant="caption" farg="inkMuted" numberOfLines={1}>
+                {mittId ? "Ditt uppdrag visas fullt ut" : "Jaktplan"} · {aktivPlan.data.lag.namn}
+              </Txt>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Visa hela jaktplanen" onPress={visaPlan} hitSlop={12} style={styles.planKnapp}>
+              <Txt variant="button" farg="brand">
+                Visa
+              </Txt>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Ta bort planen från kartan"
+              onPress={() => valjAktivPlan(null)}
+              hitSlop={12}
+              style={styles.planKnapp}
+            >
+              <Txt variant="button" farg="inkMuted">
+                Dölj
+              </Txt>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       {/* Nere: knappar till höger, och prognospanelen när vinden är på. */}
       <View style={styles.nere} pointerEvents="box-none">
         {!(vindPa && panelOppen) && (
           <View style={styles.knappar} pointerEvents="box-none">
+            {aktivPlan && mittId && (
+              <KartKnapp
+                ikon="hund"
+                text={allaRutter ? "Bara min rutt" : "Allas rutter"}
+                etikett={allaRutter ? "Visa bara min rutt" : "Visa allas rutter"}
+                onPress={() => setAllaRutter(!allaRutter)}
+              />
+            )}
+            {sparDag && (
+              <KartKnapp
+                ikon="hund"
+                text={sparPa ? "Dölj spår" : "Hundspår"}
+                etikett={sparPa ? "Dölj hundspåren" : `Visa hundspåren från ${formateraDag(sparDag.datum)}`}
+                onPress={() => setSparPa(!sparPa)}
+              />
+            )}
             <KartKnapp
               ikon="vind"
               text={vindPa ? "Dölj vind" : "Vind"}
@@ -642,6 +821,15 @@ const styles = StyleSheet.create({
   },
   nekad: { gap: avstand.s2 },
   rutaRad: { flexDirection: "row", alignItems: "center", gap: avstand.s3 },
+  planrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: avstand.s3,
+    marginTop: avstand.s2,
+    paddingTop: avstand.s2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  planKnapp: { minHeight: 44, justifyContent: "center", paddingHorizontal: avstand.s2 },
   flex1: { flex: 1 },
   sol: {
     flexDirection: "row",

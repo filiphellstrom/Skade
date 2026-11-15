@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Linking, StyleSheet, View } from "react-native";
+import { GLOMT_DREV_TIMMAR, glomtDrevPa, notiserTillatna, sattGlomtDrev } from "@/utils/glomtDrev";
+import { useEffect, useState } from "react";
+import { Linking, Platform, StyleSheet, View } from "react-native";
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import { getDatabase } from "@/db/client";
@@ -119,6 +120,8 @@ export default function Installningar() {
           av valet här när du har ändrat den.
         </Txt>
       </View>
+
+      {Platform.OS !== "web" && <GlomtDrevVal />}
 
       <View>
         <Etikett>DATA</Etikett>
@@ -261,6 +264,48 @@ function LasskarmsDiagnostik() {
             />
           ))}
       </Kort>
+    </View>
+  );
+}
+
+/**
+ * Påminnelse om glömt drev: av eller på. Slår man på den frågar iOS om
+ * lov för notiser, om det inte redan är gjort.
+ */
+function GlomtDrevVal() {
+  const [pa, setPa] = useState<boolean | null>(null);
+  const [tillatet, setTillatet] = useState(true);
+
+  useEffect(() => {
+    void (async () => {
+      setPa(await glomtDrevPa());
+      setTillatet(await notiserTillatna());
+    })();
+  }, []);
+
+  if (pa === null) {
+    return null;
+  }
+  return (
+    <View>
+      <Etikett>PÅMINNELSE OM GLÖMT DREV</Etikett>
+      <Segment<"pa" | "av">
+        etikett="Påminnelse om glömt drev"
+        varde={pa ? "pa" : "av"}
+        onChange={(v) => {
+          setPa(v === "pa");
+          void sattGlomtDrev(v === "pa").then((ok) => setTillatet(v === "pa" ? ok : true));
+        }}
+        val={[
+          { varde: "pa", titel: "På" },
+          { varde: "av", titel: "Av" },
+        ]}
+      />
+      <Txt variant="caption" farg="inkMuted" style={styles.hjalp}>
+        {pa && !tillatet
+          ? "Skade får inte visa notiser. Tillåt notiser för Skade i telefonens Inställningar, så kommer påminnelsen."
+          : `En notis om ett drev har pågått i ${GLOMT_DREV_TIMMAR} timmar, så att en glömd stopptryckning inte förstör statistiken.`}
+      </Txt>
     </View>
   );
 }

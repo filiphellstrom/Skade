@@ -61,6 +61,8 @@ const JAKTDAGEN: Amne[] = [
       "Timern visar hunden som driver, jaktmarken och vilket drev i ordningen det är. Tryck Starta drev när hunden tar upp, och Stoppa drev när drevet är slut. Det finns ingen bekräftelse, så knappen reagerar direkt.",
       "Tiden fortsätter att räknas även om du låser telefonen eller byter app, eftersom den räknas från när drevet startade.",
       "Har du flera hundar med kan du trycka Byt hund under hundnamnet mellan två drev.",
+      "Knapparna ger en kort vibration när du startar och stoppar, så att du känner att trycket gick fram utan att titta.",
+      "Har ett drev varit igång i tre timmar får du en påminnelse, ifall du har glömt att stoppa det. Den slår du på under Inställningar.",
       "Knappen uppe till höger växlar timern mellan mörkt och ljust, till exempel mörkt i skymning och ljust i skarp sol. Valet gäller bara timern och sparas.",
     ],
   },
@@ -126,13 +128,49 @@ const JAKTDAGEN: Amne[] = [
   },
 ];
 
+const JAKTLAGET: Amne[] = [
+  {
+    titel: "Jaktlag",
+    stycken: [
+      "I ett jaktlag delar hundförarna jaktplan, eftersök och chatt. Du hittar det under Jaktlag på Hem. Du behöver vara inloggad med ett konto, se Konto längre ned.",
+      "Skapa jaktlag gör dig till ansvarig. Under Medlemmar finns en inbjudan med kod, länk och QR-kod som du delar med de andra. De går med genom att öppna länken, skanna koden med kameran eller skriva in koden under Gå med.",
+      "Det finns två roller. Ansvarig skapar planer, bjuder in och kan ta bort medlemmar. Hundförare ser planerna, tar eftersök och chattar. Ett jaktlag kan ha flera ansvariga.",
+      "Byt kod om inbjudan har hamnat fel. Den gamla koden slutar gälla direkt, och de som redan är med påverkas inte.",
+    ],
+  },
+  {
+    titel: "Jaktplan och mitt uppdrag",
+    stycken: [
+      "Ansvarig skapar en plan med datum, samling och ett uppdrag per hundförare: vilken hund, var den släpps, när och vilken rutt föraren går. Släpplatser och rutter ritas på kartan på skade.hellstrom.fyi, helst på en dator.",
+      "På rutten kan punkter markeras som Viktig, med en kort text om varför. Planen syns för de andra först när den är publicerad.",
+      "Öppnar du planen i appen visas ditt eget uppdrag överst, med avstånd och riktning till släpplatsen. Visa på kartan ritar planen på fliken Karta. Där ser du din egen rutt tydligt och de andras släpplatser som initialer. Med Allas rutter visas även de andras rutter.",
+      "Den senast hämtade planen ligger kvar i telefonen och går att läsa utan täckning. Ändringar hämtas när du har täckning igen.",
+    ],
+  },
+  {
+    titel: "Eftersök",
+    stycken: [
+      "Markera eftersök i jaktlaget när ett djur är påskjutet och behöver spåras. Ange viltart, plats (din position eller ett pass) och det du vet om skottet. Markerar du utan täckning skickas eftersöket när täckningen är tillbaka. Säg till på radion så länge.",
+      "Alla i laget ser eftersöket i jaktlaget, på Hem och på kartan. Den som åker trycker Jag tar det, så ser de andra att det är omhändertaget. Bara en kan ta ett eftersök.",
+      "När eftersöket är klart avslutar du det med ett resultat. Skade skickar inga notiser om eftersök. Det brådskande säger ni på radion.",
+    ],
+  },
+  {
+    titel: "Chatt",
+    stycken: [
+      "Varje jaktlag har en chatt, så att hundförarna kan prata utan att störa passkyttarna på radion. Nya meddelanden hämtas när appen är öppen. Det kommer inga notiser.",
+      "Tryck på ett meddelande för att ta bort ditt eget, eller för att rapportera eller blockera någon annans. Blockerar du någon ser du inte längre den personens meddelanden. Du häver det under Blockerade överst i chatten.",
+    ],
+  },
+];
+
 const OVRIGT: Amne[] = [
   {
     titel: "Historik och statistik",
     stycken: [
       "Under fliken Historik finns två lägen överst. Logg visar alla avslutade jaktdagar, nyast först. Tryck på en jaktdag för att se dess drev, och tryck på ett drev för att ändra hund, tid, viltart eller utfall.",
       "Statistik visar total drevtid och antal drev per hund, och hur dreven fördelar sig på viltart och utfall.",
-      "Med Allt, Helår och Intervall väljer du vilken period som visas.",
+      "Med Allt, Jaktår, Helår och Intervall väljer du vilken period som visas. Jaktår går från 1 juli till 30 juni.",
     ],
   },
   {
@@ -158,6 +196,7 @@ const OVRIGT: Amne[] = [
       "Fliken Karta visar var du är. Första gången frågar Skade om platsåtkomst. Har du sagt nej kan du ändra det med Öppna Inställningar.",
       "Rutan överst visar din position i grader och hur noggrann den är. Min position centrerar kartan på dig igen, och Satellit växlar till satellitbild.",
       "Till höger i rutan visas nästa soluppgång eller solnedgång där du står, beroende på vilken som kommer först. Tiden räknas ut i telefonen och fungerar utan täckning.",
+      "Har du läst in hundspår från Garmin finns knappen Hundspår. Den visar spåren från den pågående jaktdagen, eller från den senaste jaktdagen som har spår.",
       "Positionen fungerar utan täckning, men själva kartbilden visas bara där den redan har laddats. Titta gärna på området hemma innan jakten. Positionen sparas inte.",
       "På webben (skade.hellstrom.fyi) finns också en karta, med valen Karta och Terräng (höjdkurvor). Den visar jaktmarkens gräns och markeringar och passar för att titta på marken på en stor skärm. Vind och vittring finns bara i appen än.",
     ],
@@ -195,22 +234,23 @@ const OVRIGT: Amne[] = [
     titel: "Konto",
     stycken: [
       "Längst ned i profilen kan du logga in med Apple eller Google. Kontot är frivilligt. Appen fungerar som vanligt utan det.",
-      "Kontot behövs för det som delas i ett jaktlag. På servern sparas ditt namn och din e-postadress. Loggar du in med Apple kan du välja att dölja e-postadressen.",
+      "Kontot behövs för det som delas i ett jaktlag. På servern sparas ditt namn och din e-postadress, och det du delar i jaktlaget: planer, eftersök med position och chattmeddelanden. Loggar du in med Apple kan du välja att dölja e-postadressen.",
       "Drev, hundar, jaktdagar och dokument ligger kvar i telefonen även när du är inloggad.",
-      "Radera konto tar bort kontot från servern permanent. Har du varit inloggad länge kan du behöva logga in igen först. Det som finns i telefonen påverkas inte.",
+      "Radera konto tar bort kontot och dina meddelanden från servern permanent. Är du ensam ansvarig i ett jaktlag tar en annan medlem över, och är du ensam i laget tas det bort. Har du varit inloggad länge kan du behöva logga in igen först. Det som finns i telefonen påverkas inte.",
     ],
   },
   {
     titel: "Inställningar",
     stycken: [
       "Tema: Ljust, Mörkt eller System. System följer telefonens inställning. Timern har en egen ljus/mörk-knapp.",
+      "Påminnelse om glömt drev: slå på den så påminner telefonen dig om ett drev har varit igång i tre timmar. Första gången frågar iOS om Skade får skicka notiser.",
       "Exportera till CSV skapar en fil med alla drev som du kan mejla till dig själv och öppna i Excel. Exporten tar alltid med all historik, oavsett vilken period du valt i Historik. Det finns även en genväg till exporten i Historik.",
     ],
   },
   {
     titel: "Dina data",
     stycken: [
-      "Allt du registrerar sparas bara i telefonen, och appen fungerar helt offline. Till en server skickas bara det som beskrivs under Konto (om du loggar in), samt en avrundad position till SMHI för väder och vind.",
+      "Allt du registrerar sparas bara i telefonen, och appen fungerar helt offline. Till en server skickas bara det som beskrivs under Konto och Jaktlag (om du loggar in), samt en avrundad position till SMHI för väder och vind.",
       "Det betyder också att data inte följer med om du byter eller återställer telefonen. Exportera till CSV regelbundet om du vill ha en egen kopia.",
       "Webbversionen av Skade sparar sina data separat i webbläsaren och delar dem inte med appen.",
     ],
@@ -278,6 +318,7 @@ export default function Hjalp() {
 
       <Grupp etikett="KOMMA IGÅNG" amnen={KOM_IGANG} />
       <Grupp etikett="JAKTDAGEN" amnen={JAKTDAGEN} />
+      <Grupp etikett="JAKTLAGET" amnen={JAKTLAGET} />
       <Grupp etikett="ÖVRIGT" amnen={OVRIGT} />
     </Skarm>
   );

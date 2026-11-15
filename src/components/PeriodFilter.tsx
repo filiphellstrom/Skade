@@ -4,6 +4,7 @@ import { avstand } from "@/theme/tokens";
 import { Stegare } from "@/components/Stegare";
 import { DatumRad } from "@/components/HjulVal";
 import { Kort } from "@/components/ui/Kort";
+import { innevarandeJaktarStart, jaktarNamn } from "@/utils/period";
 import type { HistorikPeriod } from "@/utils/period";
 
 interface PeriodFilterProps {
@@ -26,7 +27,7 @@ function standardIntervallSlut(): number {
 
 /**
  * Periodfilter för historiken (app/historik/index.tsx) och statistiken
- * (app/historik/statistik.tsx) - "Allt"/"Helår"/"Intervall" som chips,
+ * (app/historik/statistik.tsx) - "Allt"/"Jaktår"/"Helår"/"Intervall" som chips,
  * med en år-steppare respektive Från/Till i ett listkort (Apples datumhjul, 2026-11-01) som fälls ut
  * beroende på val. Varje skärm äger sitt eget filter-state lokalt (inte
  * delat mellan skärmarna) - se motivering i respektive skärms kommentar.
@@ -37,6 +38,8 @@ export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
       onChange({ typ: "allt" });
     } else if (typ === "ar") {
       onChange({ typ: "ar", ar: value.typ === "ar" ? value.ar : new Date().getFullYear() });
+    } else if (typ === "jaktar") {
+      onChange({ typ: "jaktar", ar: value.typ === "jaktar" ? value.ar : innevarandeJaktarStart() });
     } else {
       onChange({
         typ: "intervall",
@@ -50,6 +53,7 @@ export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
     <View style={styles.block}>
       <View style={styles.chipRad}>
         <TypChip label="Allt" vald={value.typ === "allt"} onPress={() => valjTyp("allt")} />
+        <TypChip label="Jaktår" vald={value.typ === "jaktar"} onPress={() => valjTyp("jaktar")} />
         <TypChip label="Helår" vald={value.typ === "ar"} onPress={() => valjTyp("ar")} />
         <TypChip
           label="Intervall"
@@ -64,6 +68,15 @@ export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
           varde={String(value.ar)}
           onMinus={() => onChange({ typ: "ar", ar: value.ar - 1 })}
           onPlus={() => onChange({ typ: "ar", ar: value.ar + 1 })}
+        />
+      )}
+
+      {value.typ === "jaktar" && (
+        <Stegare
+          label="Jaktår"
+          varde={jaktarNamn(value.ar)}
+          onMinus={() => onChange({ typ: "jaktar", ar: value.ar - 1 })}
+          onPlus={() => onChange({ typ: "jaktar", ar: value.ar + 1 })}
         />
       )}
 
