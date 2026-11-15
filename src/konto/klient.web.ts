@@ -9,3 +9,11 @@ export const kontoKlient = createAuthClient({
   baseURL: API_URL,
   fetchOptions: { credentials: "include" },
 });
+
+/** På webben sköter webbläsaren sessionskakan; den ska bara tillåtas följa med. */
+export async function inloggadeAnrop(): Promise<{
+  headers: Record<string, string>;
+  credentials: RequestCredentials;
+}> {
+  return { headers: {}, credentials: "include" };
+}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getDatabase } from "@/db/client";
 import { hamtaSenasteFore, skapaJaktdag } from "@/db/queries/jaktdag";
 import {
@@ -40,6 +40,8 @@ const NY = "__ny__";
  */
 export default function NyJaktdag() {
   const { profil } = useProfil();
+  // "Starta jaktdag" från en jaktplan skickar med jaktmarkens namn.
+  const { jaktmark: forvaldMark } = useLocalSearchParams<{ jaktmark?: string }>();
 
   const [marker, setMarker] = useState<JaktmarkMedSummering[] | null>(null);
   const [val, setVal] = useState<Uuid | typeof NY | null>(null);
@@ -74,14 +76,17 @@ export default function NyJaktdag() {
         const m = await hamtaJaktmarkerMedSummering(db, profil.id);
         if (!avbruten) {
           setMarker(m);
-          // Ingen mark än: gå direkt till fritextfältet.
-          setVal((v) => v ?? (m.length === 0 ? NY : null));
+          const onskad = forvaldMark?.trim().toLowerCase();
+          const traff = onskad ? m.find((x) => x.namn.trim().toLowerCase() === onskad) : undefined;
+          if (onskad && !traff) setNyttNamn((n) => n || (forvaldMark ?? "").trim());
+          // Förvald mark från planen, annars: ingen mark än → direkt till fritextfältet.
+          setVal((v) => v ?? traff?.id ?? (onskad || m.length === 0 ? NY : null));
         }
       })();
       return () => {
         avbruten = true;
       };
-    }, [profil.id]),
+    }, [profil.id, forvaldMark]),
   );
 
   const matchning =

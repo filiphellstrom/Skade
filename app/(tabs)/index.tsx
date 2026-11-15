@@ -15,6 +15,7 @@ import { useProfil } from "@/contexts/ProfilContext";
 import { synkaLasskarm } from "@/liveActivity";
 import { useFarger } from "@/theme/TemaContext";
 import { avstand, radie } from "@/theme/tokens";
+import { HemJaktlag } from "@/components/jaktlag/HemJaktlag";
 import { Knapp } from "@/components/ui/Knapp";
 import { Kort, Listrad } from "@/components/ui/Kort";
 import { Etikett, Felrad, IkonKnapp, Skarm } from "@/components/ui/Delar";
@@ -249,6 +250,8 @@ export default function Hem() {
           style={styles.nyJaktdag}
         />
       )}
+
+      <HemJaktlag />
 
       <View>
         <Etikett>SENASTE AKTIVITET</Etikett>

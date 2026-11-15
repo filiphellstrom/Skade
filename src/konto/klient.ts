@@ -12,3 +12,15 @@ export const kontoKlient = createAuthClient({
   baseURL: API_URL,
   plugins: [expoClient({ scheme: APP_SCHEMA, storagePrefix: APP_SCHEMA, storage: SecureStore })],
 });
+
+/**
+ * Det som ska med i egna anrop till servern (jaktlag m.m.) för att de ska
+ * räknas som inloggade: i appen skickas sessionskakan med för hand.
+ */
+export async function inloggadeAnrop(): Promise<{
+  headers: Record<string, string>;
+  credentials: RequestCredentials;
+}> {
+  const kaka = await kontoKlient.getCookie();
+  return { headers: kaka ? { Cookie: kaka } : {}, credentials: "omit" };
+}

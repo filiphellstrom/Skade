@@ -21,6 +21,12 @@ import {
   solDagEtikett,
 } from "@/utils/sol";
 import { arPass, kategoriNamn } from "@/vind/gpx";
+import { useJag } from "@/jaktlag/jag";
+import { eftersokLage } from "@/jaktlag/format";
+import { laddaFranMinne, synka, useAktivPlan, useAktivaEftersok, valjAktivPlan } from "@/jaktlag/lager";
+import { mittUppdrag } from "@/jaktlag/typer";
+import { laggInKartstilar, laggPaKartlager, planGranser, ritaPlan } from "./planLeaflet";
+import type { Kartlagerval } from "./planLeaflet";
 import { punktFarg } from "./punktfarg";
 
 export { formateraKoordinat };
@@ -38,6 +44,10 @@ export { formateraKoordinat };
  * - Jaktmarkernas gräns och markeringar (importerade från GPX under
  *   Jaktmarker) visas som i appen. Namn på pass och torn syns inzoomat.
  * - Egen position från webbläsaren, om man tillåter det. Sparas inte.
+ * - Den aktiva jaktplanen (vald med "Visa på kartan" i en plan) ritas med
+ *   det egna uppdraget fullt ut och de andras som små släpplatser.
+ *   Öppna eftersök i jaktlagen visas som röda punkter, tagna som gula.
+ *   ?punkt=lat,lon pekar ut en plats (t.ex. ett eftersök).
  * - Vind och vittring finns ännu bara i appen.
  *
  * Kartbilderna ritas av Leaflet direkt i en div; rutan och knapparna
@@ -45,21 +55,7 @@ export { formateraKoordinat };
  * (textContent), aldrig som HTML.
  */
 
-type Lager = "karta" | "terrang";
-
-const LAGER: Record<Lager, { url: string; maxZoom: number; kalla: string }> = {
-  karta: {
-    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    maxZoom: 19,
-    kalla: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>',
-  },
-  terrang: {
-    url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-    maxZoom: 17,
-    kalla:
-      'Kartdata &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>, SRTM | Kartbild &copy; <a href="https://opentopomap.org" target="_blank" rel="noreferrer">OpenTopoMap</a> (CC-BY-SA)',
-  },
-};
+type Lager = Kartlagerval;
 
 /** Hela Sverige, innan något annat är känt. */
 const SVERIGE: L.LatLngExpression = [62.5, 16.5];
@@ -75,26 +71,6 @@ interface Position {
   noggrannhet: number | null;
 }
 
-/** Stilar för det Leaflet ritar själv. Läggs in en gång. */
-function laggInStilar() {
-  if (document.getElementById("skade-karta-stil")) return;
-  const stil = document.createElement("style");
-  stil.id = "skade-karta-stil";
-  stil.textContent = `
-    .skade-karta { font-family: ${FONT[400]}, system-ui, sans-serif; }
-    .skade-karta .skade-etikett {
-      background: ${KART_FARGER.etikettYta}; color: ${KART_FARGER.etikettText};
-      border: none; border-radius: 6px; padding: 1px 6px; font-size: 12px; font-weight: 600;
-      box-shadow: 0 1px 3px rgba(0,0,0,.35); display: none;
-    }
-    .skade-karta .skade-etikett::before { display: none; }
-    .skade-karta.visa-namn .skade-etikett { display: block; }
-    .skade-karta .leaflet-popup-content { margin: 10px 14px; font-size: 14px; }
-    .skade-karta .leaflet-control-attribution { font-size: 10px; }
-  `;
-  document.head.appendChild(stil);
-}
-
 function tillGranser(data: Kartdata): L.LatLngBounds | null {
   const punkter: L.LatLngTuple[] = [
     ...data.grans.map((p): L.LatLngTuple => [p.latitude, p.longitude]),
@@ -106,13 +82,24 @@ function tillGranser(data: Kartdata): L.LatLngBounds | null {
 export function KartaVy() {
   const { farger, kortSkugga } = useTema();
   const { profil } = useProfil();
-  const { jaktmark: jaktmarkParam } = useLocalSearchParams<{ jaktmark?: string }>();
+  const {
+    jaktmark: jaktmarkParam,
+    plan: planParam,
+    punkt: punktParam,
+    punktNamn,
+  } = useLocalSearchParams<{ jaktmark?: string; plan?: string; punkt?: string; punktNamn?: string }>();
+  const { jag } = useJag();
+  const aktivPlan = useAktivPlan();
+  const eftersok = useAktivaEftersok();
+  const [allaRutter, setAllaRutter] = useState(false);
 
   const behallare = useRef<HTMLDivElement>(null);
   const karta = useRef<L.Map | null>(null);
   const kartlager = useRef<L.TileLayer | null>(null);
   const datalager = useRef<L.LayerGroup | null>(null);
   const positionslager = useRef<L.LayerGroup | null>(null);
+  const planlager = useRef<L.LayerGroup | null>(null);
+  const eftersokslager = useRef<L.LayerGroup | null>(null);
   const harPassat = useRef<string | null>(null);
   const harCentreratPaPosition = useRef(false);
 
@@ -126,12 +113,14 @@ export function KartaVy() {
   // Kartan skapas en gång och tas bort när fliken lämnas för gott.
   useEffect(() => {
     if (!behallare.current) return;
-    laggInStilar();
+    laggInKartstilar(FONT[400]);
     const k = L.map(behallare.current, { zoomControl: false }).setView(SVERIGE, 5);
     L.control.zoom({ position: "bottomleft", zoomInTitle: "Zooma in", zoomOutTitle: "Zooma ut" }).addTo(k);
     L.control.scale({ imperial: false, position: "bottomleft" }).addTo(k);
     k.attributionControl.setPrefix(false);
     datalager.current = L.layerGroup().addTo(k);
+    planlager.current = L.layerGroup().addTo(k);
+    eftersokslager.current = L.layerGroup().addTo(k);
     positionslager.current = L.layerGroup().addTo(k);
     const visaNamn = () => behallare.current?.classList.toggle("visa-namn", k.getZoom() >= ZOOM_FOR_NAMN);
     k.on("zoomend", visaNamn);
@@ -152,13 +141,7 @@ export function KartaVy() {
     const k = karta.current;
     if (!k) return;
     kartlager.current?.remove();
-    const val = LAGER[lager];
-    kartlager.current = L.tileLayer(val.url, {
-      maxZoom: 19,
-      maxNativeZoom: val.maxZoom,
-      attribution: val.kalla,
-      crossOrigin: "anonymous",
-    }).addTo(k);
+    kartlager.current = laggPaKartlager(k, lager);
   }, [lager]);
 
   // Kartdata och pågående jaktdag hämtas varje gång fliken visas.
@@ -232,6 +215,79 @@ export function KartaVy() {
     }
   }, [kartdata]);
 
+  // Jaktlagens data: läs in det sparade, och håll den aktiva planens lag uppdaterat.
+  const aktivtLagId = aktivPlan?.lagId;
+  useFocusEffect(
+    useCallback(() => {
+      laddaFranMinne();
+      if (!aktivtLagId) return;
+      const kor = () => void synka(aktivtLagId).catch(() => {});
+      kor();
+      const timer = setInterval(kor, 15000);
+      return () => clearInterval(timer);
+    }, [aktivtLagId]),
+  );
+
+  // Den aktiva jaktplanen: mitt uppdrag fullt ut, de andras som små släpplatser.
+  const planInnehall = aktivPlan?.plan.innehall;
+  const mittId = aktivPlan ? (mittUppdrag(aktivPlan.plan, jag?.id ?? null, jag?.namn ?? null)?.id ?? null) : null;
+  useEffect(() => {
+    const grupp = planlager.current;
+    if (!grupp) return;
+    if (!planInnehall) {
+      grupp.clearLayers();
+      return;
+    }
+    ritaPlan(grupp, planInnehall, { fokusId: mittId, visaAllaRutter: allaRutter || mittId === null });
+  }, [planInnehall, mittId, allaRutter]);
+
+  const visaPlan = useCallback(() => {
+    const granser = planInnehall ? planGranser(planInnehall) : null;
+    if (granser && karta.current) {
+      karta.current.fitBounds(granser, { padding: [40, 40], maxZoom: 16 });
+      return true;
+    }
+    return false;
+  }, [planInnehall]);
+
+  // Öppna eftersök, och en utpekad punkt ("Visa på kartan").
+  const utpekad = useMemo(() => {
+    const [lat, lon] = (punktParam ?? "").split(",").map(Number);
+    return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+  }, [punktParam]);
+  useEffect(() => {
+    const grupp = eftersokslager.current;
+    if (!grupp) return;
+    grupp.clearLayers();
+    for (const e of eftersok) {
+      const m = L.circleMarker([e.lat, e.lon], {
+        radius: 10,
+        color: "#ffffff",
+        weight: 3,
+        fillColor: e.status === "oppet" ? "#c0392b" : "#c98a00",
+        fillOpacity: 1,
+      });
+      const ruta = document.createElement("div");
+      const rubrik = document.createElement("strong");
+      rubrik.textContent = e.viltart ? `Eftersök: ${e.viltart.toLowerCase()}` : "Eftersök";
+      const rad = document.createElement("div");
+      rad.textContent = eftersokLage(e);
+      ruta.append(rubrik, rad);
+      m.bindPopup(ruta);
+      const etikett = document.createElement("span");
+      etikett.textContent = "Eftersök";
+      m.bindTooltip(etikett, { permanent: true, direction: "top", offset: [0, -10], className: "skade-etikett skade-etikett-alltid" });
+      m.addTo(grupp);
+    }
+    if (utpekad && !eftersok.some((e) => e.lat === utpekad.lat && e.lon === utpekad.lon)) {
+      const m = L.circleMarker([utpekad.lat, utpekad.lon], { radius: 9, color: "#ffffff", weight: 3, fillColor: "#14201b", fillOpacity: 1 });
+      const etikett = document.createElement("span");
+      etikett.textContent = punktNamn || "Vald punkt";
+      m.bindTooltip(etikett, { permanent: true, direction: "top", offset: [0, -10], className: "skade-etikett skade-etikett-alltid" });
+      m.addTo(grupp);
+    }
+  }, [eftersok, utpekad, punktNamn]);
+
   const visaJaktmark = useCallback(
     (id?: string | null) => {
       const data = kartdata?.find((k) => k.jaktmark.id === id) ?? kartdata?.[0];
@@ -247,12 +303,29 @@ export function KartaVy() {
 
   // Första gången kartdata finns (eller när "Visa på kartan" pekar ut en mark): zooma dit.
   useEffect(() => {
-    if (!kartdata || kartdata.length === 0) return;
+    // En utpekad punkt går först, sedan planen ("Visa på kartan" från en plan), sedan jaktmarken.
+    if (utpekad) {
+      const nyckel = `punkt:${punktParam}`;
+      if (harPassat.current !== nyckel && karta.current) {
+        karta.current.setView([utpekad.lat, utpekad.lon], 15);
+        harPassat.current = nyckel;
+      }
+      return;
+    }
+    if (planParam && planInnehall) {
+      const nyckel = `plan:${aktivPlan?.plan.id}`;
+      if (harPassat.current !== nyckel && visaPlan()) harPassat.current = nyckel;
+      return;
+    }
+    if (!kartdata || kartdata.length === 0) {
+      if (kartdata && planInnehall && harPassat.current === null && visaPlan()) harPassat.current = "start";
+      return;
+    }
     const mal = jaktmarkParam ?? pagaendeMark ?? kartdata[0].jaktmark.id;
     const nyckel = jaktmarkParam ? `param:${jaktmarkParam}` : "start";
     if (harPassat.current === nyckel) return;
     if (visaJaktmark(mal)) harPassat.current = nyckel;
-  }, [kartdata, jaktmarkParam, pagaendeMark, visaJaktmark]);
+  }, [kartdata, jaktmarkParam, pagaendeMark, visaJaktmark, utpekad, punktParam, planParam, planInnehall, aktivPlan?.plan.id, visaPlan]);
 
   // Egen position från webbläsaren.
   useEffect(() => {
@@ -373,14 +446,44 @@ export function KartaVy() {
                 : "Söker position…"}
           </Txt>
         )}
-        {kartdata && !harKartdata && (
+        {kartdata && !harKartdata && !aktivPlan && (
           <Txt variant="caption" farg="inkMuted" style={styles.tips}>
             Importera jaktmarkens gräns och pass från en GPX-fil under Jaktmarker, så visas de här.
           </Txt>
         )}
+        {aktivPlan && (
+          <View style={[styles.planrad, { borderTopColor: farger.border }]}>
+            <View style={styles.flex1}>
+              <Txt variant="bodyStrong" numberOfLines={1}>
+                {aktivPlan.plan.namn}
+              </Txt>
+              <Txt variant="caption" farg="inkMuted" numberOfLines={1}>
+                {mittId ? "Ditt uppdrag visas fullt ut" : "Jaktplan"} · {aktivPlan.data.lag.namn}
+              </Txt>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Visa hela jaktplanen" onPress={visaPlan} hitSlop={8}>
+              <Txt variant="button" farg="brand">
+                Visa
+              </Txt>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Ta bort planen från kartan" onPress={() => valjAktivPlan(null)} hitSlop={8}>
+              <Txt variant="button" farg="inkMuted">
+                Dölj
+              </Txt>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       <View style={styles.knappar} pointerEvents="box-none">
+        {aktivPlan && mittId && (
+          <KartKnapp
+            ikon="hund"
+            text={allaRutter ? "Bara min rutt" : "Allas rutter"}
+            etikett={allaRutter ? "Visa bara min rutt" : "Visa allas rutter"}
+            onPress={() => setAllaRutter(!allaRutter)}
+          />
+        )}
         <KartKnapp
           ikon="lager"
           text={lager === "karta" ? "Terräng" : "Karta"}
@@ -477,6 +580,14 @@ const styles = StyleSheet.create({
     borderRadius: radie.pill,
   },
   siffror: { fontVariant: ["tabular-nums"] },
+  planrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: avstand.s4,
+    marginTop: avstand.s2,
+    paddingTop: avstand.s2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   knappar: {
     position: "absolute",
     right: avstand.s4,

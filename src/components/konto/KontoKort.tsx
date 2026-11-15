@@ -7,6 +7,7 @@ import { Etikett } from "@/components/ui/Delar";
 import { Knapp } from "@/components/ui/Knapp";
 import { Kort } from "@/components/ui/Kort";
 import { Txt } from "@/components/ui/Txt";
+import { rensaJaktlag } from "@/jaktlag/lager";
 import { kontoKlient } from "@/konto/klient";
 import {
   appleFinns,
@@ -109,6 +110,10 @@ export function KontoKort() {
     const ok = await loggaUt();
     setArbetar(null);
     setBekraftaRadering(false);
+    if (ok) {
+      // Jaktlagens planer, eftersök och chatt ska inte ligga kvar i telefonen.
+      rensaJaktlag();
+    }
     if (!ok) {
       setFel("Kunde inte logga ut. Kontrollera täckningen och försök igen.");
     }
@@ -122,10 +127,12 @@ export function KontoKort() {
     setArbetar(null);
     setBekraftaRadering(false);
     if (r === "raderat") {
+      rensaJaktlag();
       refetch();
       setInfo("Kontot är raderat. Det som finns i telefonen ligger kvar.");
     } else if (r === "logga-in-igen") {
       await loggaUt();
+      rensaJaktlag();
       setInfo("För att radera kontot behöver du logga in igen först. Logga in och tryck sedan på Radera konto.");
     } else {
       setFel("Kunde inte radera kontot. Kontrollera täckningen och försök igen.");
