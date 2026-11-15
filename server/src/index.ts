@@ -1,3 +1,4 @@
+import { hanteraApi } from "./api.ts";
 import { hamtaAuth } from "./auth.ts";
 import { appleWebbKlar, googleKlar, tillatnaOrigins, type Miljo } from "./miljo.ts";
 
@@ -43,6 +44,13 @@ async function hantera(request: Request, m: Miljo): Promise<Response> {
     if (!session) return json({ fel: "Inte inloggad" }, 401);
     const { id, name, email, image, createdAt } = session.user;
     return json({ id, namn: name, epost: email, bild: image ?? null, skapad: createdAt });
+  }
+
+  // Allt annat under /api/ är jaktlag, planer, eftersök och chatt, och kräver inloggning.
+  if (pathname.startsWith("/api/")) {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session) return json({ fel: "Inte inloggad" }, 401);
+    return hanteraApi(request, m, { id: session.user.id, name: session.user.name }, pathname.slice(5));
   }
 
   return json({ fel: "Finns inte" }, 404);

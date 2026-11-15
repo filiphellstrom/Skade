@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { stadaForeRadering } from "./api.ts";
 import { byggAuthAlternativ } from "./auth-alternativ.ts";
 import type { Miljo } from "./miljo.ts";
 
@@ -10,6 +11,6 @@ let sparad: Auth | undefined;
  * prata med databasen utanför ett anrop.
  */
 export function hamtaAuth(m: Miljo): Auth {
-  sparad ??= betterAuth(byggAuthAlternativ(m, m.DB));
+  sparad ??= betterAuth(byggAuthAlternativ(m, m.DB, (userId) => stadaForeRadering(m.DB, userId)));
   return sparad;
 }

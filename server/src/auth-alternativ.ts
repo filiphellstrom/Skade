@@ -30,6 +30,8 @@ async function appleKlientHemlighet(m: Miljo): Promise<string> {
 export function byggAuthAlternativ(
   m: Miljo,
   database: BetterAuthOptions["database"],
+  /** Körs innan ett konto raderas (städar jaktlag). */
+  foreRadering?: (userId: string) => Promise<void>,
 ): BetterAuthOptions {
   const socialProviders: NonNullable<BetterAuthOptions["socialProviders"]> = {
     // Appen loggar in med Apples inbyggda ruta och skickar en ID-token hit.
@@ -82,7 +84,11 @@ export function byggAuthAlternativ(
     user: {
       deleteUser: {
         enabled: true,
-        // Jaktlag, planer, eftersök och chatt (kommande steg) ska rensas här.
+        // Ett jaktlag ska inte bli utan ansvarig. Resten (medlemskap,
+        // meddelanden, blockeringar) försvinner med kontot i databasen.
+        beforeDelete: async (anvandare) => {
+          await foreRadering?.(anvandare.id);
+        },
       },
     },
     advanced: {

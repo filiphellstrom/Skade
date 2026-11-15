@@ -12,6 +12,8 @@ i telefonen.
 | `/api/halsa` | Svarar `{ ok: true }` |
 | `/api/konfig` | Vilka inloggningssätt som är uppsatta |
 | `/api/mig` | Den inloggade användaren |
+| `/api/jaktlag…`, `/api/plan…`, `/api/eftersok…`, `/api/meddelande…`, `/api/blockering…` | Jaktlag, planer, eftersök och chatt (`src/api.ts`). Kräver inloggning och medlemskap. |
+| `/api/jaktlag/:id/nytt?sedan=` | Allt som ändrats i laget sedan en tidpunkt – så hålls telefonerna uppdaterade |
 
 ## Lokalt
 ```
