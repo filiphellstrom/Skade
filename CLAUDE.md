@@ -67,7 +67,7 @@ Skärmdumparna hamnar i systemets temp-mapp.
 - Får `npm run typecheck` fel om expo-routers rutter (till exempel gamla rutter som `/hund/ny`) är den genererade filen `.expo/types/router.d.ts` gammal. Den skrivs om när `npx expo start` startar. Starta servern en kort stund och kör typecheck igen.
 - Webben körs med `Cross-Origin-Embedder-Policy: require-corp` (för SQLite i webbläsaren). Allt från andra servrar måste gå via CORS, till exempel `crossOrigin: "anonymous"` på kartlager.
 - Better Auth får inte startas i Workerns globala scope. Den skapas vid första anropet (`hamtaAuth`), med `validateSchema: false`.
-- `public/_redirects` är Netlifys och får inte följa med till Cloudflare. `npm run build:web` tar bort den.
+- Lägg aldrig en `public/_redirects` (Netlify-format). Cloudflare avvisar den som en oändlig loop. SPA-läget i `wrangler.jsonc` sköter okända sökvägar. Netlify används inte sedan 2026-11-16.
 - Allt under `/api/` utom hälsa, konfig och inloggning kräver inloggning och svarar annars 401.
 - Live Activity kräver iOS 17. Resten av appen stödjer iOS 15.1.
 - Googles samtyckesskärm står på Testing: bara tillagda testanvändare kan logga in med Google.
