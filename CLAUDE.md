@@ -1,5 +1,7 @@
 # Skade – instruktioner för Claude Code
 
+> Utvecklingen sker tills vidare i claude.ai-projektet "Skade", inte i Claude Code (beslut 2026-11-16). Filen finns kvar för den dag arbetet flyttar hit, troligen när Filip har en Mac.
+
 Skade är en jaktdagbok för drivande hund: tidtagning av drev, historik, statistik, karta, och sedan november 2026 jaktlag med plan, eftersök och chatt. Ägare: Filip. Målet är en komplett app i App Store före sommaren 2027. Tills dess testas allt via TestFlight.
 
 **Svara på svenska.** All text i appen är på svenska: versal bara först i meningen, inga utropstecken.
@@ -62,6 +64,7 @@ Skärmdumparna hamnar i systemets temp-mapp.
 - Commit-meddelanden på svenska, en rad om vad och varför.
 
 ## Kända fällor
+- Får `npm run typecheck` fel om expo-routers rutter (till exempel gamla rutter som `/hund/ny`) är den genererade filen `.expo/types/router.d.ts` gammal. Den skrivs om när `npx expo start` startar. Starta servern en kort stund och kör typecheck igen.
 - Webben körs med `Cross-Origin-Embedder-Policy: require-corp` (för SQLite i webbläsaren). Allt från andra servrar måste gå via CORS, till exempel `crossOrigin: "anonymous"` på kartlager.
 - Better Auth får inte startas i Workerns globala scope. Den skapas vid första anropet (`hamtaAuth`), med `validateSchema: false`.
 - `public/_redirects` är Netlifys och får inte följa med till Cloudflare. `npm run build:web` tar bort den.
