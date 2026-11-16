@@ -29,16 +29,19 @@ export async function hamtaKontoKonfig(): Promise<KontoKonfig | null> {
   }
 }
 
-/** Dit inloggningen kommer tillbaka: profilsidan i appen eller på webben. */
-function tillbakaAdress(): string {
-  return Platform.OS === "web" ? `${globalThis.location.origin}/profil` : "/profil";
+/**
+ * Dit inloggningen kommer tillbaka. Från profilen är det profilsidan, från
+ * startskärmen på webben roten ("/"), där startskärmen visas igen inloggad.
+ */
+function tillbakaAdress(sti = "/profil"): string {
+  return Platform.OS === "web" ? `${globalThis.location.origin}${sti}` : sti;
 }
 
-export async function loggaInMedGoogle(): Promise<InloggResultat> {
+export async function loggaInMedGoogle(tillbaka?: string): Promise<InloggResultat> {
   try {
     const { error } = await kontoKlient.signIn.social({
       provider: "google",
-      callbackURL: tillbakaAdress(),
+      callbackURL: tillbakaAdress(tillbaka),
     });
     if (error) {
       return { ok: false, avbruten: false, fel: "Inloggningen med Google gick inte igenom. Försök igen." };

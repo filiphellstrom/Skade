@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import type { TextInput } from "react-native";
 import { getDatabase } from "@/db/client";
@@ -10,6 +10,7 @@ import { avstand } from "@/theme/tokens";
 import { Knapp } from "@/components/ui/Knapp";
 import { Falt, Skarm } from "@/components/ui/Delar";
 import { Txt } from "@/components/ui/Txt";
+import { StartInloggning } from "@/components/konto/StartInloggning";
 
 interface OnboardingScreenProps {
   profil: Profil;
@@ -35,6 +36,12 @@ interface OnboardingScreenProps {
  * (jaktens gudinna i nordisk mytologi) - medvetet mindre/kursiv stil
  * (styles.namnfakta) för att skilja den lilla kuriosan från den
  * funktionella introtexten ovanför och instruktionsraden nedanför.
+ *
+ * 2026-11-16: på webben kan man logga in med Google (eller Apple, när det
+ * finns på webben) direkt här (StartInloggning). Inloggad fylls namnet i
+ * från kontot och hunden blir frivillig - den som bara ska planera i ett
+ * jaktlag behöver ingen hund. Utan hund visar Välj hund och Hundar redan
+ * en uppmaning att lägga till en.
  */
 export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
   const hundFalt = useRef<TextInput>(null);
@@ -42,8 +49,17 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
   const [hundNamn, setHundNamn] = useState("");
   const [sparar, setSparar] = useState(false);
   const [fel, setFel] = useState<string | null>(null);
+  const [inloggad, setInloggad] = useState(false);
 
-  const kanSpara = namn.trim().length > 0 && hundNamn.trim().length > 0;
+  // Inloggad: namnet från kontot fylls i (om fältet är tomt) och hunden blir frivillig.
+  const onKonto = useCallback((konto: { namn: string } | null) => {
+    setInloggad(!!konto);
+    if (konto?.namn) {
+      setNamn((nu) => (nu.trim() === "" ? konto.namn : nu));
+    }
+  }, []);
+
+  const kanSpara = namn.trim().length > 0 && (inloggad || hundNamn.trim().length > 0);
 
   const komIgang = async () => {
     if (!kanSpara || sparar) {
@@ -54,7 +70,9 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
     try {
       const db = await getDatabase();
       await uppdateraProfilNamn(db, profil.id, namn.trim());
-      await skapaHund(db, { profilId: profil.id, namn: hundNamn.trim() });
+      if (hundNamn.trim()) {
+        await skapaHund(db, { profilId: profil.id, namn: hundNamn.trim() });
+      }
       const uppdateradProfil = await hamtaEllerSkapaProfil(db);
       onKlar(uppdateradProfil);
     } catch (e) {
@@ -86,8 +104,12 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
           </Txt>
         </View>
 
+        <StartInloggning onKonto={onKonto} />
+
         <Txt variant="bodyStrong">
-          Innan du kör igång behöver vi ditt namn och namnet på din första hund.
+          {inloggad
+            ? "Ditt namn och din första hund"
+            : "Innan du kör igång behöver vi ditt namn och namnet på din första hund."}
         </Txt>
 
         {/* Inget autoFocus: tangentbordet ska inte täcka introtexten och
@@ -104,7 +126,7 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
         />
         <Falt
           ref={hundFalt}
-          etikett="Din hunds namn"
+          etikett={inloggad ? "Din hunds namn (frivilligt)" : "Din hunds namn"}
           value={hundNamn}
           onChangeText={setHundNamn}
           placeholder="T.ex. Aston"

@@ -7,11 +7,11 @@ export async function appleFinns(): Promise<boolean> {
   return true;
 }
 
-/** Skickar webbläsaren till Apple; den kommer tillbaka till profilsidan inloggad. */
-export async function loggaInMedApple(): Promise<InloggResultat> {
+/** Skickar webbläsaren till Apple; den kommer tillbaka inloggad (profilsidan om inget annat anges). */
+export async function loggaInMedApple(tillbaka = "/profil"): Promise<InloggResultat> {
   const { error } = await kontoKlient.signIn.social({
     provider: "apple",
-    callbackURL: `${globalThis.location.origin}/profil`,
+    callbackURL: `${globalThis.location.origin}${tillbaka}`,
   });
   if (error) {
     return { ok: false, avbruten: false, fel: "Inloggningen med Apple gick inte igenom. Försök igen." };

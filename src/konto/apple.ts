@@ -17,7 +17,8 @@ export async function appleFinns(): Promise<boolean> {
  * som servern kontrollerar. En engångskod (nonce) binder token till just
  * det här försöket: Apple får koden hashad, servern får originalet.
  */
-export async function loggaInMedApple(): Promise<InloggResultat> {
+// Parametern används bara på webben (vart webbläsaren ska tillbaka); iOS-rutan stannar i appen.
+export async function loggaInMedApple(_tillbaka?: string): Promise<InloggResultat> {
   try {
     const nonce = Crypto.randomUUID();
     const hashad = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, nonce);
