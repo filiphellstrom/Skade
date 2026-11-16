@@ -1,3 +1,5 @@
+import tempfile
+TMP = tempfile.gettempdir()
 import asyncio, base64, sys
 from playwright.async_api import async_playwright
 B = "http://localhost:8081"
@@ -33,7 +35,7 @@ async def main(bredd, hojd, namn):
         await pg.goto(B + "/karta"); await pg.wait_for_timeout(4000)
         body = await pg.inner_text("body")
         print("TOM KARTA: position:", "Din position" in body, "| tips:", "Importera jaktmarkens" in body, "| kartbilder:", len(tiles))
-        await pg.screenshot(path=f"/tmp/karta-{namn}-tom.png")
+        await pg.screenshot(path=os.path.join(TMP, f"karta-{namn}-tom.png"))
         # Skapa jaktmark och importera GPX
         await pg.goto(B + "/jaktmarker"); await pg.wait_for_timeout(2500)
         print("JAKTMARKER:", (await pg.inner_text("body"))[:300].replace("\n"," | "))
@@ -51,7 +53,7 @@ async def main(bredd, hojd, namn):
         await pg.get_by_text("Visa på kartan", exact=True).click(); await pg.wait_for_timeout(4000)
         info = await pg.evaluate("""() => ({ markorer: document.querySelectorAll('.skade-karta path.leaflet-interactive').length, alla: document.querySelectorAll('.skade-karta svg path').length, etiketter: document.querySelectorAll('.skade-etikett').length, visaNamn: document.querySelector('.skade-karta').classList.contains('visa-namn'), storlek: [document.querySelector('.skade-karta').clientWidth, document.querySelector('.skade-karta').clientHeight], laddade: document.querySelectorAll('.leaflet-tile-loaded').length })""")
         print("KARTA MED DATA:", info, "| url:", pg.url.replace(B,""))
-        await pg.screenshot(path=f"/tmp/karta-{namn}-data.png")
+        await pg.screenshot(path=os.path.join(TMP, f"karta-{namn}-data.png"))
         await pg.get_by_text("Terräng", exact=True).click(); await pg.wait_for_timeout(1500)
         print("TERRÄNG: opentopo-anrop:", sum("opentopomap" in t for t in tiles), "| knapp nu:", "Karta" if await pg.get_by_text("Karta", exact=True).count() else "?")
         await pg.get_by_text("Min position", exact=True).click(); await pg.wait_for_timeout(1500)
@@ -59,7 +61,7 @@ async def main(bredd, hojd, namn):
         print("MIN POSITION (zoom 15):", info)
         await pg.locator(".skade-karta path.leaflet-interactive").first.click(force=True); await pg.wait_for_timeout(800)
         print("POPUP:", (await pg.locator(".leaflet-popup-content").inner_text()).replace("\n", " / ") if await pg.locator(".leaflet-popup-content").count() else "ingen")
-        await pg.screenshot(path=f"/tmp/karta-{namn}-nara.png")
+        await pg.screenshot(path=os.path.join(TMP, f"karta-{namn}-nara.png"))
         print("konsolfel:", errs[:5])
         await br.close()
 asyncio.run(main(int(sys.argv[2]) if len(sys.argv)>2 else 1280, int(sys.argv[3]) if len(sys.argv)>3 else 800, sys.argv[4] if len(sys.argv)>4 else "bred"))

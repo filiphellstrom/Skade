@@ -44,3 +44,4 @@ src/vind/__tests__/fixtures/privat/
 
 # Riktiga hund- och förarspår från Garmin - checka aldrig in
 src/spar/__tests__/fixtures/privat/
+.webbtest/

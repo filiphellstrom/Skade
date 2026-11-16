@@ -1,3 +1,5 @@
+import tempfile
+TMP = tempfile.gettempdir()
 import asyncio, sys, zlib, struct, re
 from playwright.async_api import async_playwright
 B = "http://localhost:8081"; API = "http://localhost:8787"
@@ -39,7 +41,7 @@ async def main():
         await anna.get_by_text("Medlemmar", exact=True).first.click(); await anna.wait_for_timeout(2000)
         t = await text(anna); m = re.search(r"\b([A-Z2-9]{4}-[A-Z2-9]{4})\b", t); kod = m.group(1) if m else None
         visa("Inbjudningskod och QR visas", kod is not None and await anna.locator("svg path").count() > 0, str(kod))
-        await anna.screenshot(path="/tmp/lag-medlemmar.png", full_page=True)
+        await anna.screenshot(path=os.path.join(TMP, "lag-medlemmar.png"), full_page=True)
         # Bo går med via länk med kod
         await bo.goto(B + "/jaktlag?kod=" + kod.replace("-", "")); await bo.wait_for_timeout(2500)
         await bo.get_by_text("Gå med", exact=True).last.click(); await bo.wait_for_timeout(2500)
@@ -84,7 +86,7 @@ async def main():
         await anna.get_by_text("Lägg till uppdrag", exact=True).click(); await anna.wait_for_timeout(500)
         await anna.get_by_text("Anna", exact=True).first.click(); await anna.wait_for_timeout(300)
         await anna.get_by_text("Sätt släpplats", exact=True).click(); await anna.mouse.click(cx + 200, cy - 120); await anna.wait_for_timeout(500)
-        await anna.screenshot(path="/tmp/lag-planerare.png")
+        await anna.screenshot(path=os.path.join(TMP, "lag-planerare.png"))
         await anna.get_by_text("Publicera", exact=True).click(); await anna.wait_for_timeout(2500)
         visa("Planen publicerad", "Planen är publicerad" in await text(anna))
         # Dra en markör: flytta släpplatsen (S) för valt uppdrag
@@ -101,11 +103,11 @@ async def main():
         visa("Bo: Mitt uppdrag", "MITT UPPDRAG" in t and "Släpp Aston kl 08:00" in t and "Släpp mot vinden" in t)
         visa("Bo: viktig punkt och andras uppdrag", "Gå igenom granplanteringen" in t and "DE ANDRAS UPPDRAG" in t and "Anna" in t)
         await bo.get_by_text("Gå igenom granplanteringen", exact=True).click(); await bo.wait_for_timeout(300)
-        await bo.screenshot(path="/tmp/lag-plan-bo.png", full_page=True)
+        await bo.screenshot(path=os.path.join(TMP, "lag-plan-bo.png"), full_page=True)
         await bo.get_by_text("Visa på kartan", exact=True).click(); await bo.wait_for_timeout(4000)
         info = await bo.evaluate("() => ({markorer: document.querySelectorAll('.leaflet-marker-icon').length, linjer: document.querySelectorAll('.skade-karta svg path').length})")
         visa("Bo: planen på kartan", info["markorer"] >= 5 and "/karta" in bo.url, str(info))
-        await bo.screenshot(path="/tmp/lag-karta-bo.png")
+        await bo.screenshot(path=os.path.join(TMP, "lag-karta-bo.png"))
         # Eftersök
         await bo.go_back(); await bo.wait_for_timeout(800); await bo.go_back(); await bo.wait_for_timeout(1500)
         await bo.get_by_text("Markera eftersök", exact=True).click(); await bo.wait_for_timeout(3000)
@@ -126,7 +128,7 @@ async def main():
         await anna.get_by_text("Avsluta eftersöket", exact=True).click(); await anna.wait_for_timeout(300)
         await anna.get_by_text("Hittat", exact=True).click(); await anna.get_by_text("Avsluta eftersöket", exact=True).last.click(); await anna.wait_for_timeout(2000)
         visa("Avslutat: Hittat", "AVSLUTAT" in await text(anna))
-        await anna.screenshot(path="/tmp/lag-eftersok.png", full_page=True)
+        await anna.screenshot(path=os.path.join(TMP, "lag-eftersok.png"), full_page=True)
         # Chatt
         await anna.goto(lag_url + "/chatt"); await anna.wait_for_timeout(2500)
         await anna.get_by_placeholder("Skriv till hundförarna").fill("Släpper om tio minuter"); await anna.get_by_text("Skicka", exact=True).click(); await anna.wait_for_timeout(1500)
@@ -135,7 +137,7 @@ async def main():
         await bo.get_by_placeholder("Skriv till hundförarna").fill("Uppfattat"); await bo.get_by_text("Skicka", exact=True).click()
         await anna.wait_for_timeout(7000)
         visa("Anna ser Bos svar", "Uppfattat" in await text(anna))
-        await bo.screenshot(path="/tmp/lag-chatt-bo.png")
+        await bo.screenshot(path=os.path.join(TMP, "lag-chatt-bo.png"))
         await bo.get_by_text("Släpper om tio minuter", exact=True).click(); await bo.wait_for_timeout(400)
         t = await text(bo); visa("Rapportera och blockera visas", "Rapportera" in t and "Blockera Anna" in t)
         await bo.get_by_text("Rapportera", exact=True).click(); await bo.wait_for_timeout(1200)

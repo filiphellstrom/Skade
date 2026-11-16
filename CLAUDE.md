@@ -18,13 +18,15 @@ Skade är en jaktdagbok för drivande hund: tidtagning av drev, historik, statis
 - `server/` är en egen Cloudflare Worker (`skade-api`, D1-databasen `skade`, Better Auth). Nya tabeller: en ny SQL-fil i `server/migrations/`, körs automatiskt före driftsättning.
 - Namn i koden är på svenska utan å, ä, ö (`jaktdag`, `hamtaSpar`). Följ det.
 
+## Filips dator
+Windows med PowerShell. **Det går inte att bygga eller köra iOS-appen lokalt** (ingen Mac, ingen simulator). Det som bara finns i iPhone-appen provas i TestFlight på Filips telefon. Webben och servern körs lokalt. Skriv kommandon för PowerShell, inte bash (`$env:NAMN = "värde"`, `;` i stället för `&&` om det ska fungera i äldre PowerShell).
+
 ## Kommandon
 ```
 npm run typecheck        # tsc
 npm run lint             # eslint
 npm test                 # beräkningstester (vind, spår)
 npx expo start           # utvecklingsserver
-npx expo run:ios         # bygg och kör i simulatorn (kräver Mac med Xcode)
 npm run build:web        # webbygget till dist/
 
 cd server
@@ -36,12 +38,21 @@ Kör typecheck, lint och båda testsviterna före varje commit.
 
 ### Jaktlag i webbläsare med två användare
 `verktyg/webbtest/lagtest.py` (Playwright för Python) kör hela flödet: skapa lag, bjuda in, plan, eftersök, chatt.
+Tre terminaler i PowerShell (engångsvis först: `pip install playwright` och `playwright install chromium`):
 ```
-cd server && npx wrangler d1 migrations apply skade --local && npx wrangler dev --port 8787
-EXPO_PUBLIC_SKADE_API=http://localhost:8787 npx expo export -p web --output-dir /tmp/webb-test
-python3 verktyg/webbtest/serve.py /tmp/webb-test     # :8081, med samma säkerhetshuvuden som i drift
-python3 verktyg/webbtest/lagtest.py
+# 1: lokal server
+cd server; npx wrangler d1 migrations apply skade --local; npx wrangler dev --port 8787
+
+# 2: webbygge mot den lokala servern, serverat på :8081 med samma säkerhetshuvuden som i drift
+$env:EXPO_PUBLIC_SKADE_API = "http://localhost:8787"
+npx expo export -p web --output-dir .webbtest
+Remove-Item Env:EXPO_PUBLIC_SKADE_API
+python verktyg/webbtest/serve.py .webbtest
+
+# 3: testet
+python verktyg/webbtest/lagtest.py
 ```
+Skärmdumparna hamnar i systemets temp-mapp.
 `TESTLAGE=1` i `server/.dev.vars` slår på inloggning med e-post och lösenord, bara för test.
 
 ## Release
@@ -70,6 +81,6 @@ Skilj alltid på verifierat och overifierat. Det som bara går att prova i en te
 
 ## Läget 2026-11-15
 - Senaste funktion: sprint 17 (jaktlag, jaktplan, eftersök, chatt, påminnelse om glömt drev, haptik, hundspår på Karta-fliken, jaktår). Pushad till `main` och `release`.
-- **Inte kört på en telefon:** planen och eftersöken på Apple-kartan (`src/components/karta/PlanLager.tsx`), hundspåren (`HundsparLager.tsx`), vibrationen, påminnelsen om glömt drev, QR-skanning och länken `skade://jaktlag?kod=`. Börja med att köra dem i simulatorn.
+- **Inte kört på en telefon:** planen och eftersöken på Apple-kartan (`src/components/karta/PlanLager.tsx`), hundspåren (`HundsparLager.tsx`), vibrationen, påminnelsen om glömt drev, QR-skanning och länken `skade://jaktlag?kod=`. De provas i TestFlight (bygget efter build 24), inte lokalt.
 - Väntar: Garmin-klockan (start/stopp av drev från Instinct 2 och nyare) tills Filip har en ny klocka.
 - Före externa testare: integritetspolicyn ska skrivas om (servern lagrar namn, e-post, planer, eftersök med position och chatt).
