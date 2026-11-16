@@ -37,7 +37,13 @@ export function HemJaktlag() {
           forsta
           ikon="jaktmark"
           titel={namn ?? "Jaktlag"}
-          undertitel={namn ? "Planer, eftersök och chatt" : "Planera jakten, ta eftersök och chatta med hundförarna"}
+          undertitel={
+            namn
+              ? "Planer, eftersök och chatt"
+              : inloggad
+                ? "Planera jakten, ta eftersök och chatta med hundförarna"
+                : "Logga in med Apple eller Google för att planera jakten med hundförarna"
+          }
           hoger={oppna > 0 ? `${oppna} eftersök` : undefined}
           hogerFarg="signal"
           onPress={() => router.push(lista && lista.length === 1 && inloggad ? `/jaktlag/${lista[0].id}` : "/jaktlag")}

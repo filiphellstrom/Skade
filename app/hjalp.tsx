@@ -233,7 +233,7 @@ const OVRIGT: Amne[] = [
   {
     titel: "Konto",
     stycken: [
-      "Längst ned i profilen kan du logga in med Apple eller Google. På webben kan du också logga in direkt på startskärmen första gången, så hämtas ditt namn från kontot och hunden kan läggas till senare. Kontot är frivilligt. Appen fungerar som vanligt utan det.",
+      "Längst ned i profilen kan du logga in med Apple eller Google. Du kan också logga in direkt på startskärmen första gången du öppnar Skade, eller när du öppnar Jaktlag. Loggar du in på startskärmen hämtas ditt namn från kontot och hunden kan läggas till senare. Kontot är frivilligt. Appen fungerar som vanligt utan det.",
       "Kontot behövs för det som delas i ett jaktlag. På servern sparas ditt namn och din e-postadress, och det du delar i jaktlaget: planer, eftersök med position och chattmeddelanden. Loggar du in med Apple kan du välja att dölja e-postadressen.",
       "Drev, hundar, jaktdagar och dokument ligger kvar i telefonen även när du är inloggad.",
       "Radera konto tar bort kontot och dina meddelanden från servern permanent. Är du ensam ansvarig i ett jaktlag tar en annan medlem över, och är du ensam i laget tas det bort. Har du varit inloggad länge kan du behöva logga in igen först. Det som finns i telefonen påverkas inte.",

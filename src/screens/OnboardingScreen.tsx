@@ -11,6 +11,7 @@ import { Knapp } from "@/components/ui/Knapp";
 import { Falt, Skarm } from "@/components/ui/Delar";
 import { Txt } from "@/components/ui/Txt";
 import { StartInloggning } from "@/components/konto/StartInloggning";
+import { kontoKlient } from "@/konto/klient";
 
 interface OnboardingScreenProps {
   profil: Profil;
@@ -37,8 +38,8 @@ interface OnboardingScreenProps {
  * (styles.namnfakta) för att skilja den lilla kuriosan från den
  * funktionella introtexten ovanför och instruktionsraden nedanför.
  *
- * 2026-11-16: på webben kan man logga in med Google (eller Apple, när det
- * finns på webben) direkt här (StartInloggning). Inloggad fylls namnet i
+ * 2026-11-16: man kan logga in med Apple eller Google direkt här
+ * (StartInloggning), både i appen och på webben. Inloggad fylls namnet i
  * från kontot och hunden blir frivillig - den som bara ska planera i ett
  * jaktlag behöver ingen hund. Utan hund visar Välj hund och Hundar redan
  * en uppmaning att lägga till en.
@@ -72,6 +73,14 @@ export function OnboardingScreen({ profil, onKlar }: OnboardingScreenProps) {
       await uppdateraProfilNamn(db, profil.id, namn.trim());
       if (hundNamn.trim()) {
         await skapaHund(db, { profilId: profil.id, namn: hundNamn.trim() });
+      }
+      // Apple skickar bara namnet första gången man loggar in. Saknas det på
+      // kontot får kontot namnet från startskärmen.
+      if (inloggad) {
+        const { data } = await kontoKlient.getSession().catch(() => ({ data: null }));
+        if (data?.user && !data.user.name?.trim()) {
+          await kontoKlient.updateUser({ name: namn.trim() }).catch(() => {});
+        }
       }
       const uppdateradProfil = await hamtaEllerSkapaProfil(db);
       onKlar(uppdateradProfil);

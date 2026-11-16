@@ -1,17 +1,17 @@
 import type { ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
 import { useJag } from "@/jaktlag/jag";
 import { useFarger } from "@/theme/TemaContext";
 import { avstand } from "@/theme/tokens";
-import { Knapp } from "@/components/ui/Knapp";
+import { InloggKnappar } from "@/components/konto/InloggKnappar";
 import { Kort } from "@/components/ui/Kort";
 import { Rubrikrad, Skarm, TillbakaKnapp } from "@/components/ui/Delar";
 import { Txt } from "@/components/ui/Txt";
 
 /**
- * Jaktlag kräver ett konto. Utan inloggning visas en förklaring och en
- * knapp till Profil, där man loggar in. Barnen får den inloggade användaren.
+ * Jaktlag kräver ett konto. Utan inloggning visas en förklaring och
+ * knapparna för att logga in direkt här (2026-11-16; förut en knapp till
+ * Profil). Barnen får den inloggade användaren.
  */
 export function KraverKonto({
   titel,
@@ -37,14 +37,11 @@ export function KraverKonto({
       <TillbakaKnapp />
       <Rubrikrad titel={titel} />
       <Kort style={styles.kort}>
-        <Txt variant="body">
-          Jaktlag delas med andra och kräver därför ett konto. Logga in med Apple eller Google längst ned i
-          profilen.
-        </Txt>
+        <Txt variant="body">Jaktlag delas med andra och kräver därför ett konto.</Txt>
         <Txt variant="body" farg="inkMuted">
           Drev, hundar och dokument ligger kvar i telefonen som förut.
         </Txt>
-        <Knapp titel="Gå till Profil" onPress={() => router.push("/profil")} />
+        <InloggKnappar tillbaka="/jaktlag" />
       </Kort>
     </Skarm>
   );
