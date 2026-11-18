@@ -5,7 +5,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { hamtaAllaDrevForExport } from "@/db/queries/export";
 import { hamtaFalltViltForProfil } from "@/db/queries/fallt";
 import { hamtaHandelserForProfil } from "@/db/queries/handelse";
-import { soktid, tapptTid } from "@/utils/drevhandelser";
+import { arFas, fasTider, soktid, tapptTid } from "@/utils/drevhandelser";
 import { foreNamn } from "@/utils/vader";
 import type { UnixTimestamp, Uuid } from "@/db/types";
 import { tillCsv } from "./csv";
@@ -75,6 +75,9 @@ export async function exporteraHistorikSomCsv(
       "Söktid (min)",
       "Tappt (min)",
       "Effektiv drevtid (min)",
+      "Upptag (min)",
+      "Drev (min)",
+      "Återgång (min)",
       "Före",
       "Temperatur (°C)",
       "Vind (m/s)",
@@ -84,6 +87,10 @@ export async function exporteraHistorikSomCsv(
       const dagens = handelser.filter((h) => h.jaktdagId === r.jaktdagId);
       const egna = dagens.filter((h) => h.drevId === r.id);
       const tappt = tapptTid(egna, r.endTimestamp);
+      // 2026-11-18: tomt om drevet tagits utan faserna.
+      const faser = egna.some((h) => arFas(h.typ))
+        ? fasTider(egna, r.startTimestamp, r.endTimestamp)
+        : null;
       const sok = soktid(
         r,
         dagens,
@@ -101,6 +108,9 @@ export async function exporteraHistorikSomCsv(
         min(sok),
         min(tappt),
         min(Math.max(0, r.duration - tappt)),
+        faser ? min(faser.upptag) : "",
+        faser ? min(faser.drev) : "",
+        faser ? min(faser.atergang) : "",
         foreNamn(r.fore) ?? "",
         tal(r.temperatur),
         tal(r.vindHastighet),

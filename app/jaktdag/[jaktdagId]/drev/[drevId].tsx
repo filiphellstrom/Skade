@@ -26,6 +26,10 @@ import { hamtaFalltViltForDrev } from "@/db/queries/fallt";
 import { hamtaDrevMedHundnamnForJaktdag } from "@/db/queries/statistik";
 import {
   HANDELSE_NAMN,
+  antalFaser,
+  arFas,
+  FASER,
+  fasTider,
   soktid,
   sorteraHandelser,
   tapptTid,
@@ -236,6 +240,9 @@ export default function RedigeraDrev() {
   const hundNamnNu =
     hundarPaJaktdagen.find((h) => h.id === hundId)?.namn ?? drev.hundNamn;
   const tappt = tapptTid(handelser, endTimestamp);
+  // 2026-11-18: faserna upptag, drev och återgång (bara om de använts).
+  const harFaser = handelser.some((h) => arFas(h.typ));
+  const faser = fasTider(handelser, startTimestamp, endTimestamp);
   const vaderRad = vaderText(vader);
 
   const taBortHandelse = async (id: string) => {
@@ -367,13 +374,13 @@ export default function RedigeraDrev() {
               <Listrad
                 forsta
                 titel="Söktid"
-                undertitel="Från släpp till upptag"
+                undertitel="Från släpp till start"
                 hoger={formateraVaraktighet(sok)}
               />
             )}
             <Listrad
               forsta={sok === null}
-              titel="Upptag"
+              titel="Start"
               hoger={klockslag(startTimestamp)}
             />
             {handelser.map((h) => (
@@ -388,6 +395,20 @@ export default function RedigeraDrev() {
               />
             ))}
             <Listrad titel="Drevslut" hoger={klockslag(endTimestamp)} />
+            {harFaser &&
+              FASER.map((typ) => {
+                const antal = antalFaser(handelser, typ);
+                return (
+                  <Listrad
+                    key={typ}
+                    titel={`${HANDELSE_NAMN[typ]} totalt`}
+                    undertitel={
+                      antal > 1 ? `${antal} gånger` : undefined
+                    }
+                    hoger={formateraVaraktighet(faser[typ])}
+                  />
+                );
+              })}
             {tappt > 0 && (
               <Listrad
                 titel="Effektiv drevtid"

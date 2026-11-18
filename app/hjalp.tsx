@@ -58,10 +58,13 @@ const JAKTDAGEN: Amne[] = [
   {
     titel: "Ta tid på ett drev",
     stycken: [
-      "Timern visar hunden som driver, jaktmarken och vilket drev i ordningen det är. Tryck Starta drev när hunden tar upp, och Stoppa drev när drevet är slut. Det finns ingen bekräftelse, så knappen reagerar direkt.",
+      "Timern visar hunden som driver, jaktmarken och vilket drev i ordningen det är. Knapparna är uppifrån Upptag, Starta drev, Återgång och Avsluta drev. Det finns ingen bekräftelse, så knapparna reagerar direkt.",
+      "Upptag, Starta drev och Återgång fungerar som start och varv. Du startar timern med vilken av dem du vill, till exempel Upptag när hunden börjar gå i spåret. Tryck Starta drev när hunden skäller och driver, och Återgång när den har släppt och är på väg tillbaka. Hittar den ett nytt djur på vägen trycker du Starta drev igen. Avsluta drev stoppar timern.",
+      "Under klockan står vilken del av drevet som pågår och hur länge den har hållit på, och den knappen har en bock. I drevvyn ser du hur lång tid upptag, drev och återgång tog totalt.",
+      "Startar du från låsskärmen räknas allt som drev tills du trycker en annan knapp i appen. Låsskärmens knappar är bara start och stopp.",
       "Tiden fortsätter att räknas även om du låser telefonen eller byter app, eftersom den räknas från när drevet startade.",
       "Har du flera hundar med kan du trycka Byt hund under hundnamnet mellan två drev.",
-      "Knapparna ger en kort vibration när du startar och stoppar, så att du känner att trycket gick fram utan att titta.",
+      "Knapparna ger en kort vibration när du trycker, så att du känner att trycket gick fram utan att titta.",
       "Har ett drev varit igång i tre timmar får du en påminnelse, ifall du har glömt att stoppa det. Den slår du på under Inställningar.",
       "Knappen uppe till höger växlar timern mellan mörkt och ljust, till exempel mörkt i skymning och ljust i skarp sol. Valet gäller bara timern och sparas.",
     ],
@@ -69,10 +72,10 @@ const JAKTDAGEN: Amne[] = [
   {
     titel: "Släppt, söker, tappt och kopplad",
     stycken: [
-      "Innan ett drev kan du trycka Släppt när du släpper hunden. Timern visar då hur länge hunden har sökt, och när du trycker Starta drev sparas söktiden. Tar hunden inte upp trycker du Kopplad när du har kopplat den.",
-      "Under ett drev finns knappen Tappt. Tryck den när hunden tappar, och Tog upp igen när den tar upp igen. Timern visar hur länge drevet stått i tappt.",
+      "Innan ett drev kan du trycka Släppt när du släpper hunden. Timern visar då hur länge hunden har sökt, och när du startar timern sparas söktiden. Tar hunden inte upp trycker du Kopplad när du har kopplat den.",
+      "När hunden driver finns knappen Tappt. Tryck den när hunden tappar, och Tog upp igen när den tar upp igen. Timern visar hur länge drevet stått i tappt. Trycker du Återgång eller Upptag medan drevet står i tappt slutar tappten där.",
       "Stoppar du drevet medan det står i tappt frågar appen om drevet slutade vid tappten. Svarar du ja blir sluttiden tidpunkten för tappten.",
-      "Allt det här är frivilligt. Vill du bara ta tid trycker du Starta drev och Stoppa drev som vanligt. I drevvyn ser du alla händelser och kan ta bort den som blev fel.",
+      "Allt det här är frivilligt. Vill du bara ta tid trycker du Starta drev och Avsluta drev som vanligt. I drevvyn ser du alla händelser och kan ta bort den som blev fel.",
     ],
   },
   {

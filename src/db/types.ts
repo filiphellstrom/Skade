@@ -253,13 +253,24 @@ export interface Dokument {
 }
 
 /** Migration 0006: händelser runt och inuti ett drev. */
-export type HandelseTyp = "slapp" | "tappt" | "atertag" | "kopplad";
+/**
+ * Migration 0011 (2026-11-18): faserna upptag, drev och återgång. De
+ * fungerar som start/varv på timern och har alltid drevId satt.
+ */
+export type FasTyp = "upptag" | "drev" | "atergang";
+
+export type HandelseTyp =
+  | "slapp"
+  | "tappt"
+  | "atertag"
+  | "kopplad"
+  | FasTyp;
 
 export interface DrevHandelse {
   id: Uuid;
   jaktdagId: Uuid;
   hundId: Uuid;
-  /** Satt för tappt/atertag, NULL för slapp/kopplad. */
+  /** Satt för tappt/atertag och faserna, NULL för slapp/kopplad. */
   drevId: Uuid | null;
   typ: HandelseTyp;
   tidpunkt: UnixTimestamp;

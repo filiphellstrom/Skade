@@ -23,6 +23,7 @@ import type {
   Drev,
   DrevHandelse,
   DrevMedHundnamn,
+  FasTyp,
   HandelseTyp,
   Hund,
   Jaktdag,
@@ -33,7 +34,14 @@ import {
   registreraHandelse,
 } from "@/db/queries/handelse";
 import { hamtaVaderForDrev } from "@/db/queries/vader";
-import { oppenTappt, sokerSedan, tapptTid } from "@/utils/drevhandelser";
+import {
+  aktuellFas,
+  arFas,
+  HANDELSE_NAMN,
+  oppenTappt,
+  sokerSedan,
+  tapptTid,
+} from "@/utils/drevhandelser";
 import { foreNamn, vaderText, vadretsKo } from "@/utils/vader";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SelectableCard } from "@/components/SelectableCard";
@@ -90,6 +98,13 @@ import { Txt } from "@/components/ui/Txt";
  * (TimerTemaOmrade - följer appens tema tills man tryckt, sparas separat).
  * "Avsluta jaktdag" finns inte längre här utan på Hem. "Byt hund" finns
  * kvar som en liten textknapp under hundnamnet, bara mellan två drev.
+ *
+ * 2026-11-18: fyra knappar uppifrån: Upptag, Starta drev, Återgång,
+ * Avsluta drev. De tre första fungerar som start/varv - valfri av dem
+ * startar drevet och varje tryck därefter börjar en ny fas (sparas som
+ * drevhändelse, migration 0011). Avsluta drev stoppar. Låsskärmens
+ * knappar är oförändrade: ett drev som startas där räknas som drev från
+ * start tills man trycker en annan fas här.
  */
 export default function Timer() {
   const { jaktdagId } = useLocalSearchParams<{ jaktdagId: string }>();
@@ -209,8 +224,13 @@ export default function Timer() {
   const sokSekunder = useElapsedTime(sokerFran);
   const tapptNu = useElapsedTime(tapptSedan);
   const tapptTotalt = pagaendeDrev ? tapptTid(drevHandelser, null) : 0;
+  const fas = pagaendeDrev
+    ? aktuellFas(drevHandelser, pagaendeDrev.startTimestamp)
+    : null;
+  const fasSekunder = useElapsedTime(fas?.sedan ?? null);
 
-  const start = async () => {
+  /** Startar drevet med valfri fas (Upptag, Starta drev eller Återgång). */
+  const start = async (forstaFas: FasTyp) => {
     if (!aktivHund || sparar || pagaendeDrev) {
       return;
     }
@@ -222,6 +242,20 @@ export default function Timer() {
         jaktdagId,
         hundId: aktivHund.id,
       });
+      // Fasen får samma tidpunkt som drevets start. Misslyckas den räknas
+      // drevet ändå som drev från start (aktuellFas), så timern påverkas inte.
+      try {
+        const forsta = await registreraHandelse(db, {
+          jaktdagId,
+          hundId: aktivHund.id,
+          drevId: drev.id,
+          typ: forstaFas,
+          tidpunkt: drev.startTimestamp,
+        });
+        setHandelser((lista) => [...lista, forsta]);
+      } catch {
+        // Se ovan.
+      }
       setPagaendeDrev(drev);
       setSenasteDrev(null);
       setAntalDrev((n) => n + 1);
@@ -286,7 +320,7 @@ export default function Timer() {
     try {
       const db = await getDatabase();
       const drevId =
-        typ === "tappt" || typ === "atertag"
+        typ === "tappt" || typ === "atertag" || arFas(typ)
           ? (pagaendeDrev?.id ?? null)
           : null;
       const hundId = pagaendeDrev?.hundId ?? aktivHund.id;
@@ -297,7 +331,7 @@ export default function Timer() {
         typ,
       });
       setHandelser((lista) => [...lista, ny]);
-      kannTryck("handelse");
+      kannTryck(arFas(typ) ? "start" : "handelse");
     } catch (e) {
       setFel(e instanceof Error ? e.message : "Kunde inte spara.");
     } finally {
@@ -350,13 +384,21 @@ export default function Timer() {
         kanStarta={!!aktivHund}
         sparar={sparar}
         fel={fel}
-        onStart={start}
+        aktivFas={fas?.typ ?? null}
+        onFas={(f) => (pagaendeDrev ? registrera(f) : start(f))}
         onStopp={() => stopp()}
         status={
           tapptSedan !== null
             ? `Tappt ${formateraTid(tapptNu)}`
-            : pagaendeDrev && tapptTotalt > 0
-              ? `Tappt totalt ${formateraTid(tapptTotalt)}`
+            : fas
+              ? [
+                  `${HANDELSE_NAMN[fas.typ]} ${formateraTid(fasSekunder)}`,
+                  tapptTotalt > 0
+                    ? `tappt totalt ${formateraTid(tapptTotalt)}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
               : sokerFran !== null
                 ? `Söker ${formateraTid(sokSekunder)}`
                 : null
@@ -384,6 +426,8 @@ export default function Timer() {
             : pagaendeDrev
               ? {
                   typ: "drev",
+                  // Tappt hör till drevfasen. Står den öppen visas den ändå.
+                  visa: fas?.typ === "drev" || tapptSedan !== null,
                   iTappt: tapptSedan !== null,
                   onTappt: () =>
                     registrera(tapptSedan !== null ? "atertag" : "tappt"),
@@ -425,7 +469,7 @@ function Laddar() {
 /** Knapparna för drevhändelser, beroende på läge (2026-11-04). */
 type HandelseKnappar =
   | { typ: "vila"; soker: boolean; onSlapp: () => void; onKopplad: () => void }
-  | { typ: "drev"; iTappt: boolean; onTappt: () => void }
+  | { typ: "drev"; visa: boolean; iTappt: boolean; onTappt: () => void }
   | {
       typ: "fragaSlut";
       tapptKlockslag: string;
@@ -450,7 +494,9 @@ function TimerVy(props: {
   kanStarta: boolean;
   sparar: boolean;
   fel: string | null;
-  onStart: () => void;
+  /** Fasen drevet är i, null mellan dreven. */
+  aktivFas: FasTyp | null;
+  onFas: (fas: FasTyp) => void;
   onStopp: () => void;
   status: string | null;
   vaderRad: string | null;
@@ -581,28 +627,20 @@ function TimerVy(props: {
             style={styles.bytHund}
           />
         </View>
-      ) : props.pagar ? (
+      ) : (
         <View style={styles.knappar}>
-          {props.handelse?.typ === "drev" && (
+          {/* Tappt/Släppt/Kopplad hålls isär från de fyra drevknapparna med
+              extra luft, så att de inte förväxlas med Upptag. */}
+          {props.handelse?.typ === "drev" && props.handelse.visa && (
             <Knapp
               variant={props.handelse.iTappt ? "primar" : "sekundar"}
               titel={props.handelse.iTappt ? "Tog upp igen" : "Tappt"}
               onPress={props.handelse.onTappt}
               disabled={props.sparar}
-              minHojd={80}
+              minHojd={56}
+              style={styles.extraKnapp}
             />
           )}
-          <Knapp
-            variant="stopp"
-            ikon="stopp"
-            titel="Stoppa drev"
-            onPress={props.onStopp}
-            laddar={props.sparar}
-            minHojd={112}
-          />
-        </View>
-      ) : (
-        <View style={styles.knappar}>
           {props.handelse?.typ === "vila" &&
             (props.handelse.soker ? (
               <Knapp
@@ -610,7 +648,8 @@ function TimerVy(props: {
                 titel="Kopplad"
                 onPress={props.handelse.onKopplad}
                 disabled={props.sparar}
-                minHojd={64}
+                minHojd={56}
+                style={styles.extraKnapp}
               />
             ) : (
               <Knapp
@@ -618,21 +657,79 @@ function TimerVy(props: {
                 titel="Släppt"
                 onPress={props.handelse.onSlapp}
                 disabled={props.sparar}
-                minHojd={64}
+                minHojd={56}
+                style={styles.extraKnapp}
               />
             ))}
-          <Knapp
-            variant="start"
-            ikon="spela"
+          <FasKnapp
+            fas="upptag"
+            titel="Upptag"
+            variant="sekundar"
+            minHojd={72}
+            aktivFas={props.aktivFas}
+            kanStarta={props.kanStarta}
+            onFas={props.onFas}
+          />
+          <FasKnapp
+            fas="drev"
             titel="Starta drev"
-            onPress={props.onStart}
-            disabled={!props.kanStarta}
-            laddar={props.sparar}
-            minHojd={112}
+            variant="start"
+            minHojd={88}
+            aktivFas={props.aktivFas}
+            kanStarta={props.kanStarta}
+            onFas={props.onFas}
+          />
+          <FasKnapp
+            fas="atergang"
+            titel="Återgång"
+            variant="sekundar"
+            minHojd={72}
+            aktivFas={props.aktivFas}
+            kanStarta={props.kanStarta}
+            onFas={props.onFas}
+          />
+          <Knapp
+            variant="stopp"
+            ikon="stopp"
+            titel="Avsluta drev"
+            onPress={props.onStopp}
+            disabled={!props.pagar}
+            minHojd={88}
           />
         </View>
       )}
     </View>
+  );
+}
+
+/**
+ * En av start/varv-knapparna. Mellan dreven startar den drevet, under ett
+ * drev börjar den en ny fas. Fasen drevet är i får en bock.
+ */
+function FasKnapp(props: {
+  fas: FasTyp;
+  titel: string;
+  variant: "start" | "sekundar";
+  minHojd: number;
+  aktivFas: FasTyp | null;
+  kanStarta: boolean;
+  onFas: (fas: FasTyp) => void;
+}) {
+  const aktiv = props.aktivFas === props.fas;
+  return (
+    <Knapp
+      variant={props.variant}
+      ikon={aktiv ? "bock" : props.variant === "start" ? "spela" : undefined}
+      titel={props.titel}
+      onPress={() => props.onFas(props.fas)}
+      // Inte avstängd medan något sparas (knapparna skulle blinka grå).
+      // start() och registrera() släpper inte igenom dubbeltryck.
+      disabled={!props.kanStarta}
+      minHojd={props.minHojd}
+      accessibilityLabel={
+        aktiv ? `${props.titel}, pågår` : props.titel
+      }
+    />
   );
 }
 
@@ -664,5 +761,6 @@ const styles = StyleSheet.create({
   bytHund: { alignSelf: "center" },
   hundlista: { gap: avstand.s2 },
   knappar: { gap: avstand.s3 },
+  extraKnapp: { marginBottom: avstand.s4 },
   center: { textAlign: "center" },
 });

@@ -10,5 +10,10 @@
     "outDir": ".test-build",
     "rootDir": "src"
   },
-  "include": ["src/vind/**/*.ts", "src/spar/**/*.ts"]
+  "include": [
+    "src/vind/**/*.ts",
+    "src/spar/**/*.ts",
+    "src/utils/drevhandelser.ts",
+    "src/utils/__tests__/*.ts"
+  ]
 }

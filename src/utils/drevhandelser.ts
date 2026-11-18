@@ -1,9 +1,10 @@
 import type {
   Drev,
   DrevHandelse,
+  FasTyp,
   HandelseTyp,
   UnixTimestamp,
-} from "@/db/types";
+} from "../db/types";
 
 /**
  * Rena beräkningar på drevhändelser (migration 0006). Ingen databas här -
@@ -15,7 +16,70 @@ export const HANDELSE_NAMN: Record<HandelseTyp, string> = {
   tappt: "Tappt",
   atertag: "Tog upp igen",
   kopplad: "Kopplad",
+  upptag: "Upptag",
+  drev: "Drev",
+  atergang: "Återgång",
 };
+
+/** Drevets faser i den ordning de visas (migration 0011). */
+export const FASER: FasTyp[] = ["upptag", "drev", "atergang"];
+
+export function arFas(typ: HandelseTyp): typ is FasTyp {
+  return typ === "upptag" || typ === "drev" || typ === "atergang";
+}
+
+/**
+ * Fasen drevet är i just nu: den senaste fashändelsen, eller "drev" från
+ * drevets start om inga fashändelser finns (drev startat från
+ * låsskärmen eller före migration 0011).
+ */
+export function aktuellFas(
+  drevHandelser: DrevHandelse[],
+  start: UnixTimestamp,
+): { typ: FasTyp; sedan: UnixTimestamp } {
+  let fas: { typ: FasTyp; sedan: UnixTimestamp } = { typ: "drev", sedan: start };
+  for (const h of sorteraHandelser(drevHandelser)) {
+    if (arFas(h.typ)) {
+      fas = { typ: h.typ, sedan: h.tidpunkt };
+    }
+  }
+  return fas;
+}
+
+/**
+ * Sekunder per fas under ett drev. Varje fas varar till nästa fas eller
+ * till drevets slut (`nu` om drevet pågår). Tiden före första
+ * fashändelsen räknas som drev. Händelser utanför drevets tid (till
+ * exempel efter att start eller slut ändrats i drevvyn) kläms in i den.
+ */
+export function fasTider(
+  drevHandelser: DrevHandelse[],
+  start: UnixTimestamp,
+  slut: UnixTimestamp | null,
+  nu: UnixTimestamp = Math.floor(Date.now() / 1000),
+): Record<FasTyp, number> {
+  const tider: Record<FasTyp, number> = { upptag: 0, drev: 0, atergang: 0 };
+  const grans = Math.max(start, slut ?? nu);
+  const klam = (t: UnixTimestamp) => Math.min(Math.max(t, start), grans);
+  let fas: FasTyp = "drev";
+  let fran = start;
+  for (const h of sorteraHandelser(drevHandelser)) {
+    if (!arFas(h.typ)) {
+      continue;
+    }
+    const t = klam(h.tidpunkt);
+    tider[fas] += Math.max(0, t - fran);
+    fas = h.typ;
+    fran = t;
+  }
+  tider[fas] += Math.max(0, grans - fran);
+  return tider;
+}
+
+/** Antal gånger en fas påbörjats (till exempel antal drev i ett pass). */
+export function antalFaser(drevHandelser: DrevHandelse[], typ: FasTyp): number {
+  return drevHandelser.filter((h) => h.typ === typ).length;
+}
 
 /** Sorterar händelser i tidsordning (äldst först), stabilt på createdAt. */
 export function sorteraHandelser(handelser: DrevHandelse[]): DrevHandelse[] {
@@ -26,7 +90,8 @@ export function sorteraHandelser(handelser: DrevHandelse[]): DrevHandelse[] {
 
 /**
  * Pågående tappt i ett drev: den senaste tappten om den inte följs av ett
- * återupptag. Returnerar tapptens tidpunkt eller null.
+ * återupptag eller en ny fas (upptag, drev, återgång - 2026-11-18).
+ * Returnerar tapptens tidpunkt eller null.
  */
 export function oppenTappt(
   drevHandelser: DrevHandelse[],
@@ -35,7 +100,7 @@ export function oppenTappt(
   for (const h of sorteraHandelser(drevHandelser)) {
     if (h.typ === "tappt") {
       oppen = oppen ?? h.tidpunkt;
-    } else if (h.typ === "atertag") {
+    } else if (h.typ === "atertag" || arFas(h.typ)) {
       oppen = null;
     }
   }
@@ -43,8 +108,9 @@ export function oppenTappt(
 }
 
 /**
- * Sekunder i tappt under ett drev. En tappt som aldrig följs av ett
- * återupptag räknas fram till drevets slut (eller `nu` om drevet pågår).
+ * Sekunder i tappt under ett drev. En tappt slutar vid återupptag eller
+ * vid nästa fas. En tappt som aldrig avslutas räknas fram till drevets
+ * slut (eller `nu` om drevet pågår).
  */
 export function tapptTid(
   drevHandelser: DrevHandelse[],
@@ -57,7 +123,7 @@ export function tapptTid(
   for (const h of sorteraHandelser(drevHandelser)) {
     if (h.typ === "tappt" && oppen === null) {
       oppen = h.tidpunkt;
-    } else if (h.typ === "atertag" && oppen !== null) {
+    } else if ((h.typ === "atertag" || arFas(h.typ)) && oppen !== null) {
       summa += Math.max(0, Math.min(h.tidpunkt, grans) - oppen);
       oppen = null;
     }
