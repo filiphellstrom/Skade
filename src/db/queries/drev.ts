@@ -1,6 +1,79 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { randomUUID } from "../../utils/uuid";
-import type { Drev, DrevMedHundnamn, UnixTimestamp, Uuid } from "../types";
+import { fasTider } from "../../utils/drevhandelser";
+import type {
+  Drev,
+  DrevHandelse,
+  DrevMedHundnamn,
+  UnixTimestamp,
+  Uuid,
+} from "../types";
+
+/**
+ * Drevtiden som sparas i Drev.duration och visas i Historik och statistik
+ * (beslut 2026-11-18): tiden från start till slut minus återgången.
+ * Upptag och drev räknas, återgång inte. Ett drev utan faser får hela
+ * tiden, precis som förut.
+ */
+async function beraknaDrevtid(
+  db: SQLiteDatabase,
+  drevId: Uuid,
+  start: UnixTimestamp,
+  slut: UnixTimestamp,
+): Promise<number> {
+  const handelser = await db.getAllAsync<DrevHandelse>(
+    "SELECT * FROM DrevHandelse WHERE drevId = ?",
+    [drevId],
+  );
+  const atergang = fasTider(handelser, start, slut).atergang;
+  return Math.max(0, slut - start - atergang);
+}
+
+/**
+ * Räknar om drevtiden för ett avslutat drev, till exempel när en
+ * fashändelse tagits bort i drevvyn. Gör inget för ett pågående drev.
+ */
+export async function rattaDrevtid(
+  db: SQLiteDatabase,
+  drevId: Uuid,
+): Promise<void> {
+  const drev = await db.getFirstAsync<Drev>("SELECT * FROM Drev WHERE id = ?", [
+    drevId,
+  ]);
+  if (!drev || drev.endTimestamp === null) {
+    return;
+  }
+  const ny = await beraknaDrevtid(
+    db,
+    drevId,
+    drev.startTimestamp,
+    drev.endTimestamp,
+  );
+  if (ny !== drev.duration) {
+    await db.runAsync(
+      "UPDATE Drev SET duration = ?, updatedAt = ? WHERE id = ?",
+      [ny, Math.floor(Date.now() / 1000), drevId],
+    );
+  }
+}
+
+/**
+ * Låsskärmens Stoppa-knapp (Swift) skriver duration = slut - start och
+ * vet inget om faserna. Körs vid appstart och när appen kommer tillbaka,
+ * och rättar avslutade drev som har en återgång.
+ */
+export async function rattaDrevtiderMedAtergang(
+  db: SQLiteDatabase,
+): Promise<void> {
+  const rader = await db.getAllAsync<{ id: Uuid }>(
+    `SELECT DISTINCT d.id FROM Drev d
+     JOIN DrevHandelse e ON e.drevId = d.id AND e.typ = 'atergang'
+     WHERE d.endTimestamp IS NOT NULL`,
+  );
+  for (const { id } of rader) {
+    await rattaDrevtid(db, id);
+  }
+}
 
 /**
  * Sida 3 ("Starta timer"): skapar ett nytt Drev med startTimestamp = nu.
@@ -69,18 +142,20 @@ export async function stoppaDrev(
     sluttid !== undefined && sluttid > drev.startTimestamp && sluttid <= now
       ? sluttid
       : now;
-  const duration = slut - drev.startTimestamp;
+  let duration = slut - drev.startTimestamp;
 
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      "UPDATE Drev SET endTimestamp = ?, duration = ?, updatedAt = ? WHERE id = ?",
-      [slut, duration, now, drevId],
-    );
     // Händelser efter den bakåtdaterade sluttiden (t.ex. ett återupptag
     // som registrerades efter tappten) hör inte längre till drevet.
     await db.runAsync(
       "DELETE FROM DrevHandelse WHERE drevId = ? AND tidpunkt > ?",
       [drevId, slut],
+    );
+    // 2026-11-18: återgången räknas inte i drevtiden.
+    duration = await beraknaDrevtid(db, drevId, drev.startTimestamp, slut);
+    await db.runAsync(
+      "UPDATE Drev SET endTimestamp = ?, duration = ?, updatedAt = ? WHERE id = ?",
+      [slut, duration, now, drevId],
     );
   });
 
@@ -146,7 +221,11 @@ export async function uppdateraDrev(
       throw new Error("Sluttiden måste vara efter starttiden.");
     }
 
-    const duration = nySlut !== null ? nySlut - nyStart : null;
+    // 2026-11-18: återgången räknas inte i drevtiden.
+    const duration =
+      nySlut !== null
+        ? await beraknaDrevtid(db, drevId, nyStart, nySlut)
+        : null;
 
     await db.runAsync(
       "UPDATE Drev SET startTimestamp = ?, endTimestamp = ?, duration = ?, updatedAt = ? WHERE id = ?",

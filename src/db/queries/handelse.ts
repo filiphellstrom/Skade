@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { randomUUID } from "../../utils/uuid";
 import type { DrevHandelse, HandelseTyp, Uuid } from "../types";
+import { rattaDrevtid } from "./drev";
 
 /**
  * Migration 0006: drevhändelser. Upptag/drevslut är Drev.start/end - här
@@ -69,10 +70,20 @@ export async function hamtaHandelserForProfil(
   );
 }
 
-/** Tar bort en händelse (feltryck), från drevvyn. */
+/**
+ * Tar bort en händelse (feltryck), från drevvyn. Var det en fas räknas
+ * drevtiden om, eftersom återgången inte räknas i den (2026-11-18).
+ */
 export async function raderaHandelse(
   db: SQLiteDatabase,
   handelseId: Uuid,
 ): Promise<void> {
+  const h = await db.getFirstAsync<DrevHandelse>(
+    "SELECT * FROM DrevHandelse WHERE id = ?",
+    [handelseId],
+  );
   await db.runAsync("DELETE FROM DrevHandelse WHERE id = ?", [handelseId]);
+  if (h?.drevId) {
+    await rattaDrevtid(db, h.drevId);
+  }
 }

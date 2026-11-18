@@ -1,5 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import { runMigrations } from "./migrate";
+import { rattaDrevtiderMedAtergang } from "./queries/drev";
 
 const DATABASE_NAME = "skade.db";
 
@@ -21,6 +22,12 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
   await db.execAsync("PRAGMA foreign_keys = ON;");
   await runMigrations(db);
+  // Drev stoppade från låsskärmen medan appen var stängd (2026-11-18).
+  try {
+    await rattaDrevtiderMedAtergang(db);
+  } catch {
+    // Får aldrig hindra appen från att starta.
+  }
 
   dbInstance = db;
   return dbInstance;

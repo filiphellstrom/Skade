@@ -16,6 +16,7 @@ import { hamtaHundarForJaktdag } from "@/db/queries/hund";
 import {
   hamtaPagaendeDrev,
   hamtaSenasteDrev,
+  rattaDrevtiderMedAtergang,
   startaDrev,
   stoppaDrev,
 } from "@/db/queries/drev";
@@ -150,6 +151,8 @@ export default function Timer() {
 
       (async () => {
         const db = await getDatabase();
+        // Drev stoppat från låsskärmen mitt i en återgång (2026-11-18).
+        await rattaDrevtiderMedAtergang(db).catch(() => {});
         const [j, hundar, drev, senaste, allaDrev, h] = await Promise.all([
           hamtaJaktdag(db, jaktdagId),
           hamtaHundarForJaktdag(db, jaktdagId),

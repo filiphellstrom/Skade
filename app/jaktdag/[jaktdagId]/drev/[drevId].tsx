@@ -245,6 +245,8 @@ export default function RedigeraDrev() {
   // inga fasrader.
   const harFaser = handelser.filter((h) => arFas(h.typ)).length > 1;
   const faser = fasTider(handelser, startTimestamp, endTimestamp);
+  // Drevtiden i Historik och statistik: återgången räknas inte (2026-11-18).
+  const drevtid = Math.max(0, duration - faser.atergang);
   const vaderRad = vaderText(vader);
 
   const taBortHandelse = async (id: string) => {
@@ -274,7 +276,7 @@ export default function RedigeraDrev() {
           {varNystoppat ? "Drevet stoppat" : "Redigera drev"}
         </Txt>
         <Txt variant="body" farg="inkMuted" style={styles.undertitel}>
-          {hundNamnNu} · {formateraTid(duration)}
+          {hundNamnNu} · {formateraTid(drevtid)}
         </Txt>
         {vaderRad && (
           <Txt variant="caption" farg="inkMuted" style={styles.undertitel}>
@@ -405,7 +407,14 @@ export default function RedigeraDrev() {
                     key={typ}
                     titel={`${HANDELSE_NAMN[typ]} totalt`}
                     undertitel={
-                      antal > 1 ? `${antal} gånger` : undefined
+                      [
+                        antal > 1 ? `${antal} gånger` : null,
+                        typ === "atergang" && faser.atergang > 0
+                          ? "Räknas inte i drevtiden"
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || undefined
                     }
                     hoger={formateraVaraktighet(faser[typ])}
                   />
@@ -415,7 +424,7 @@ export default function RedigeraDrev() {
               <Listrad
                 titel="Effektiv drevtid"
                 undertitel={`Tappt totalt ${formateraVaraktighet(tappt)}`}
-                hoger={formateraVaraktighet(Math.max(0, duration - tappt))}
+                hoger={formateraVaraktighet(Math.max(0, drevtid - tappt))}
               />
             )}
           </Kort>

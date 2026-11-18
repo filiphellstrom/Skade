@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { AppState, View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -12,6 +12,7 @@ import {
   SchibstedGrotesk_800ExtraBold,
 } from "@expo-google-fonts/schibsted-grotesk";
 import { getDatabase } from "@/db/client";
+import { rattaDrevtiderMedAtergang } from "@/db/queries/drev";
 import { hamtaEllerSkapaProfil } from "@/db/queries/profil";
 import type { Profil } from "@/db/types";
 import { ProfilProvider } from "@/contexts/ProfilContext";
@@ -70,7 +71,20 @@ export default function RootLayout() {
     })();
   }, []);
 
-  // Ett fontfel får inte låsa appen - då används systemets sans.
+  // 2026-11-18: låsskärmens Stoppa-knapp sparar hela tiden som drevtid.
+  // Har drevet en återgång rättas det när appen kommer tillbaka.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void getDatabase()
+          .then(rattaDrevtiderMedAtergang)
+          .catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+    // Ett fontfel får inte låsa appen - då används systemets sans.
   const klar =
     (fontLaddad || !!fontFel) && profil !== null && tema !== null && startsida !== undefined;
 

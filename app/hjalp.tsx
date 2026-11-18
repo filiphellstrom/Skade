@@ -61,6 +61,7 @@ const JAKTDAGEN: Amne[] = [
       "Timern visar hunden som driver, jaktmarken och vilket drev i ordningen det är. Knapparna är uppifrån Upptag, Starta drev, Återgång och Avsluta drev. Det finns ingen bekräftelse, så knapparna reagerar direkt.",
       "Upptag, Starta drev och Återgång fungerar som start och varv. Du startar timern med vilken av dem du vill, till exempel Upptag när hunden börjar gå i spåret. Tryck Starta drev när hunden skäller och driver, och Återgång när den har släppt och är på väg tillbaka. Hittar den ett nytt djur på vägen trycker du Starta drev igen. Avsluta drev stoppar timern.",
       "Under klockan står vilken del av drevet som pågår och hur länge den har hållit på, och den knappen har en bock. I drevvyn ser du hur lång tid upptag, drev och återgång tog totalt.",
+      "Drevtiden i Historik och statistiken räknar upptag och drev, men inte återgång. Klockan på timern visar hela tiden sedan du startade.",
       "Startar du från låsskärmen räknas allt som drev tills du trycker en annan knapp i appen. Låsskärmens knappar är bara start och stopp.",
       "Tiden fortsätter att räknas även om du låser telefonen eller byter app, eftersom den räknas från när drevet startade.",
       "Har du flera hundar med kan du trycka Byt hund under hundnamnet mellan två drev.",
