@@ -240,8 +240,10 @@ export default function RedigeraDrev() {
   const hundNamnNu =
     hundarPaJaktdagen.find((h) => h.id === hundId)?.namn ?? drev.hundNamn;
   const tappt = tapptTid(handelser, endTimestamp);
-  // 2026-11-18: faserna upptag, drev och återgång (bara om de använts).
-  const harFaser = handelser.some((h) => arFas(h.typ));
+  // 2026-11-18: faserna upptag, drev och återgång. Visas bara när drevet
+  // bytt fas minst en gång - ett drev som bara startats och stoppats får
+  // inga fasrader.
+  const harFaser = handelser.filter((h) => arFas(h.typ)).length > 1;
   const faser = fasTider(handelser, startTimestamp, endTimestamp);
   const vaderRad = vaderText(vader);
 
